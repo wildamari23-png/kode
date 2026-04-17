@@ -255,20 +255,20 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 
   <!-- Bulk Action Bars -->
   <div id="bulk-action-bar" class="animate__animated animate__slideInUp">
-    <div class="bg-slate-900 text-white px-8 py-4 rounded-3xl shadow-2xl flex items-center gap-8 border border-slate-700">
-      <p class="text-sm font-bold"><span id="selected-count" class="text-indigo-400">0</span> terpilih</p>
-      <div class="flex items-center gap-4">
-        <select id="bulk-status-select" class="bg-slate-800 text-xs border-none rounded-xl px-4 py-2 outline-none">
+    <div class="bg-white text-slate-700 px-5 py-4 rounded-3xl shadow-2xl flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 border border-slate-200">
+      <p class="text-sm font-bold flex items-center gap-2"><i data-lucide="check-square" class="w-4 h-4 text-indigo-500"></i> <span id="selected-count" class="text-indigo-600">0</span> pesanan terpilih</p>
+      <div class="flex items-center gap-2 w-full sm:w-auto">
+        <select id="bulk-status-select" class="bg-slate-50 text-xs border border-slate-200 rounded-xl px-4 py-2 outline-none flex-1 sm:flex-none">
           <option value="">Status...</option>
           <option value="Antrean">Antrean</option>
           <option value="Proses">Proses</option>
           <option value="Revisi">Revisi</option>
           <option value="Selesai">Selesai</option>
         </select>
-        <button onclick="handleBulkUpdate()" class="px-4 py-2 bg-indigo-600 rounded-xl text-xs font-bold">Update</button>
-        <button id="admin-bulk-delete" onclick="handleBulkDelete()" class="hidden px-4 py-2 bg-red-600 rounded-xl text-xs font-bold">Hapus</button>
+        <button onclick="handleBulkUpdate()" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"><i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Update</button>
+        <button id="admin-bulk-delete" onclick="handleBulkDelete()" class="hidden px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus</button>
       </div>
-      <button onclick="clearSelection()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      <button onclick="clearSelection()" class="text-slate-400 hover:text-slate-700 self-end sm:self-auto"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
   </div>
 
@@ -839,28 +839,28 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
           </div>
 
           <!-- ORDERS -->
-          <div id="sub-orders" class="hidden space-y-8">
-            <div class="flex justify-between items-center">
-   <h3 class="text-3xl font-black text-slate-900">Daftar Transaksi</h3>
-   
-   <!-- TOMBOL REFRESH MODERN & KEKINIAN -->
-   <div class="flex items-center gap-3">
-      <button onclick="refreshData()" 
-              class="group flex items-center gap-2.5 px-7 py-3.5 bg-gradient-to-r from-[#7c3aed] to-[#c026d3] hover:from-[#6d28d9] hover:to-[#b91c7d] text-white font-semibold text-sm rounded-3xl shadow-lg hover:shadow-2xl transition-all active:scale-95">
-         <i data-lucide="refresh-cw" class="w-4 h-4 group-active:animate-spin"></i>
-         Refresh Data
-      </button>
-      
-      <div id="admin-add-order-btn" class="hidden">
-         <button onclick="openOrderModal()" 
-                 class="px-6 py-3.5 gradient-primary text-white rounded-3xl font-bold text-sm shadow-lg flex items-center gap-2">
-            <i data-lucide="plus" class="w-4 h-4"></i>
-            Pesanan Manual
-         </button>
-      </div>
-   </div>
-</div>
-             <div class="relative"><i data-lucide="search" class="absolute left-6 top-5 text-slate-300"></i><input type="text" id="search-orders" onkeyup="filterOrdersFull()" placeholder="Cari nama, ID, atau layanan..." class="w-full pl-16 pr-6 py-5 rounded-[2.5rem] border outline-none focus:ring-4 focus:ring-indigo-50"></div>
+          <div id="sub-orders" class="hidden space-y-6">
+            <div class="bg-white border rounded-[2rem] p-5 md:p-6 shadow-sm">
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <h3 class="text-2xl md:text-3xl font-black text-slate-900">Daftar Transaksi</h3>
+                  <p class="text-xs md:text-sm text-slate-500 mt-1">Kelola order, cek status progres, dan lakukan aksi cepat secara real-time.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button onclick="refreshData()" class="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-[#7c3aed] to-[#c026d3] hover:from-[#6d28d9] hover:to-[#b91c7d] text-white font-semibold text-xs md:text-sm rounded-2xl shadow-lg transition-all active:scale-95">
+                    <i data-lucide="refresh-cw" class="w-4 h-4 group-active:animate-spin"></i> Refresh Data
+                  </button>
+                  <div id="admin-add-order-btn" class="hidden">
+                    <button onclick="openOrderModal()" class="px-5 py-3 gradient-primary text-white rounded-2xl font-bold text-xs md:text-sm shadow-lg flex items-center gap-2">
+                      <i data-lucide="plus" class="w-4 h-4"></i> Pesanan Manual
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div id="orders-kpi-cards" class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4"></div>
+            </div>
+
+             <div class="relative bg-white rounded-[2rem] border px-2 py-2 shadow-sm"><i data-lucide="search" class="absolute left-6 top-1/2 -translate-y-1/2 text-slate-300"></i><input type="text" id="search-orders" onkeyup="filterOrdersFull()" placeholder="Cari nama, ID, atau layanan..." class="w-full pl-14 pr-4 py-3 rounded-2xl border-0 outline-none focus:ring-2 focus:ring-indigo-100"></div>
              <div class="flex gap-4 border-b pb-2 overflow-x-auto">
                <div class="order-tab active shrink-0" onclick="filterOrdersByStatus('all')">Semua</div>
                <div class="order-tab shrink-0" onclick="filterOrdersByStatus('Antrean')">Antrean</div>
@@ -2391,7 +2391,23 @@ window.handlePublicOrder = async function(e) {
         const matchesStatus = CURRENT_ORDER_TAB === 'all' || o['TAHAPAN PESANAN'] === CURRENT_ORDER_TAB;
         return matchesQuery && matchesStatus;
       });
+      if (typeof renderOrdersKPI === 'function') renderOrdersKPI(f);
       renderOrdersFull(f);
+    }
+
+    window.renderOrdersKPI = function(orders = []) {
+      const box = document.getElementById('orders-kpi-cards');
+      if (!box) return;
+      const total = orders.length;
+      const antrean = orders.filter(o => o['TAHAPAN PESANAN'] === 'Antrean').length;
+      const proses = orders.filter(o => o['TAHAPAN PESANAN'] === 'Proses').length;
+      const selesai = orders.filter(o => o['TAHAPAN PESANAN'] === 'Selesai').length;
+      box.innerHTML = `
+        <div class="p-3 rounded-2xl bg-slate-50 border"><p class="text-[10px] uppercase font-black text-slate-400">Total</p><h4 class="text-xl font-black text-slate-800">${total}</h4></div>
+        <div class="p-3 rounded-2xl bg-blue-50 border border-blue-100"><p class="text-[10px] uppercase font-black text-blue-400">Antrean</p><h4 class="text-xl font-black text-blue-700">${antrean}</h4></div>
+        <div class="p-3 rounded-2xl bg-amber-50 border border-amber-100"><p class="text-[10px] uppercase font-black text-amber-400">Proses</p><h4 class="text-xl font-black text-amber-700">${proses}</h4></div>
+        <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-100"><p class="text-[10px] uppercase font-black text-emerald-400">Selesai</p><h4 class="text-xl font-black text-emerald-700">${selesai}</h4></div>
+      `;
     }
 
    window.renderOrdersFull = function(allOrders) {
@@ -2522,19 +2538,19 @@ window.handlePublicOrder = async function(e) {
       <!-- Pelanggan -->
       <div class="relative">
         <label class="block text-sm font-bold mb-2 text-slate-700">Nama Pelanggan</label>
-        <input type="text" id="admin-order-nama" value="${o ? o['NAMA PELANGGAN'] : ''}"
-               class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]"
-               onkeyup="showCustomerSuggestions(this.value)" placeholder="Ketik nama pelanggan...">
+	        <input type="text" id="admin-order-nama" value="${o ? o['NAMA PELANGGAN'] : ''}"
+	               required class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]"
+	               onkeyup="showCustomerSuggestions(this.value)" placeholder="Ketik nama pelanggan...">
         <div id="customer-suggestions" class="hidden"></div>
       </div>
       <div class="grid grid-cols-2 gap-6">
         <div>
           <label class="block text-sm font-bold mb-2">No. Handphone</label>
-          <input type="tel" id="admin-order-hp" value="${o ? o['NO HANDPHONE'] : ''}" class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]">
+	          <input type="tel" id="admin-order-hp" value="${o ? o['NO HANDPHONE'] : ''}" required class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]">
         </div>
         <div>
           <label class="block text-sm font-bold mb-2">Email</label>
-          <input type="email" id="admin-order-email" value="${o ? o['EMAIL'] : ''}" class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]">
+	          <input type="email" id="admin-order-email" value="${o ? o['EMAIL'] : ''}" required class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]">
         </div>
       </div>
       <!-- Layanan -->
@@ -2555,8 +2571,8 @@ window.handlePublicOrder = async function(e) {
           </button>
         </div>
 
-        <select id="admin-order-svc" onchange="updateAdminPrice('service');syncAdminServiceSearchFromSelect()" 
-                class="w-full p-4 sm:p-5 rounded-2xl border border-slate-200 focus:border-[#7c3aed] outline-none text-sm sm:text-base font-medium bg-white">
+	        <select id="admin-order-svc" onchange="updateAdminPrice('service');syncAdminServiceSearchFromSelect()" 
+	                required class="w-full p-4 sm:p-5 rounded-2xl border border-slate-200 focus:border-[#7c3aed] outline-none text-sm sm:text-base font-medium bg-white">
           <option value="">Pilih layanan...</option>
           ${DASHBOARD_CACHE.allServices.map(s => {
             const nama = s['Detail Layanan'] || s['ID LAYANAN'] || 'Layanan';
@@ -2583,8 +2599,8 @@ window.handlePublicOrder = async function(e) {
       <div class="grid grid-cols-2 gap-6">
         <div>
           <label class="block text-sm font-bold mb-2">Kuantitas</label>
-          <input type="number" id="admin-order-qty" value="${o ? o.QTY || 1 : 1}" min="1"
-                 class="w-full p-5 rounded-3xl border text-2xl font-bold" oninput="updateAdminPrice()">
+	          <input type="number" id="admin-order-qty" value="${o ? o.QTY || 1 : 1}" min="1" required
+	                 class="w-full p-5 rounded-3xl border text-2xl font-bold" oninput="updateAdminPrice()">
         </div>
         <div class="space-y-2">
           <label class="block text-xs font-bold text-slate-600">Satuan</label>
@@ -2597,9 +2613,9 @@ window.handlePublicOrder = async function(e) {
       <!-- Harga Jual -->
       <div>
         <label class="block text-sm font-bold mb-2">Harga Jual ke Pelanggan (Rp)</label>
-        <input type="number" id="admin-order-harga" value="${o ? o['TOTAL HARGA'] || 0 : 0}"
-               class="w-full p-5 rounded-3xl border text-2xl font-bold focus:border-[#7c3aed]"
-               oninput="updateAdminPrice()">
+	        <input type="number" id="admin-order-harga" value="${o ? o['TOTAL HARGA'] || 0 : 0}" min="1" required
+	               class="w-full p-5 rounded-3xl border text-2xl font-bold focus:border-[#7c3aed]"
+	               oninput="updateAdminPrice()">
         <div id="harga-badge" class="mt-4 inline-flex items-center gap-3 bg-gradient-to-r from-[#7c3aed] to-[#c026d3] text-white px-6 py-3 rounded-3xl shadow-xl text-2xl font-bold">
           <span class="text-white/80 text-base">Rp</span>
           <span id="harga-jual-formatted">0</span>
@@ -2609,15 +2625,15 @@ window.handlePublicOrder = async function(e) {
       <!-- Rincian -->
       <div>
         <label class="block text-sm font-bold mb-2">Rincian / Topik</label>
-        <textarea id="admin-order-rincian" rows="3" class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]">${o ? o['RINCIAN PESANAN'] || '' : ''}</textarea>
+	        <textarea id="admin-order-rincian" rows="3" required class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]">${o ? o['RINCIAN PESANAN'] || '' : ''}</textarea>
       </div>
 
       <!-- Deadline + Worker -->
       <div class="grid grid-cols-2 gap-6">
         <div>
           <label class="block text-sm font-bold mb-2">Deadline Proyek</label>
-          <input type="date" id="admin-order-deadline" value="${o ? o.DEADLINE || '' : ''}"
-                 class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]">
+	          <input type="date" id="admin-order-deadline" value="${o ? o.DEADLINE || '' : ''}" required
+	                 class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]">
         </div>
         <div>
           <label class="block text-sm font-bold mb-2">Assign ke Worker</label>
@@ -2748,19 +2764,20 @@ window.handlePublicOrder = async function(e) {
   }
 
   const html = `
-    <div class="max-w-4xl mx-auto">
-      <div class="flex justify-between items-start mb-8">
+    <div class="max-w-4xl mx-auto space-y-6">
+      <div class="bg-gradient-to-r from-slate-900 via-indigo-900 to-purple-900 text-white p-6 rounded-3xl shadow-2xl flex justify-between items-start">
         <div>
-          <h3 class="text-3xl font-black">#${id}</h3>
-          <p class="font-semibold text-2xl mt-1">${o['NAMA PELANGGAN']}</p>
-          <p class="text-slate-500 text-sm">${o['EMAIL'] || '-'}</p>
+          <p class="text-xs uppercase tracking-widest text-white/70 font-bold">Detail Pesanan</p>
+          <h3 class="text-3xl font-black mt-1">#${id}</h3>
+          <p class="font-semibold text-xl mt-2">${o['NAMA PELANGGAN']}</p>
+          <p class="text-white/80 text-sm">${o['EMAIL'] || '-'}</p>
         </div>
-        <span class="status-pill status-${o['TAHAPAN PESANAN']} text-lg px-6 py-2">${o['TAHAPAN PESANAN']}</span>
+        <span class="status-pill status-${o['TAHAPAN PESANAN']} text-sm px-5 py-2">${o['TAHAPAN PESANAN']}</span>
       </div>
 
       <!-- NO HP PELANGGAN -->
-      <div class="flex justify-end mb-8">
-        <div class="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border">
+      <div class="flex justify-end">
+        <div class="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl border shadow-sm">
           <span class="text-xs text-slate-500">No. WhatsApp</span>
           <p class="font-semibold">${o['NO HANDPHONE'] || '-'}</p>
           <button onclick="copyText('${o['NO HANDPHONE'] || ''}')" 
@@ -2771,20 +2788,20 @@ window.handlePublicOrder = async function(e) {
       </div>
 
       <!-- DEADLINE -->
-      <div class="bg-white p-6 rounded-2xl border mb-8">
+      <div class="bg-white p-6 rounded-2xl border shadow-sm">
         <p class="text-xs font-bold text-slate-400 mb-2">DEADLINE PROYEK</p>
         <p class="font-bold text-2xl">${deadlineDisplay}</p>
       </div>
 
       <!-- RINCIAN PESANAN -->
-      <div class="bg-white p-6 rounded-2xl border mb-8">
+      <div class="bg-white p-6 rounded-2xl border shadow-sm">
         <p class="text-xs font-bold text-slate-400 mb-3">RINCIAN PESANAN</p>
         <p class="text-slate-700 leading-relaxed whitespace-pre-wrap">${o['RINCIAN PESANAN'] || 'Tidak ada deskripsi tambahan.'}</p>
       </div>
 
       <!-- FOLDER DOKUMEN -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div class="bg-white p-5 rounded-2xl border">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white p-5 rounded-2xl border shadow-sm">
           <p class="text-xs font-bold text-slate-400 mb-3">FOLDER DOKUMEN AWAL</p>
           ${o['FOLDER DOKUMEN AWAL'] 
             ? `<div class="flex items-center gap-3">
@@ -2801,7 +2818,7 @@ window.handlePublicOrder = async function(e) {
               </button>`}
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border">
+        <div class="bg-white p-5 rounded-2xl border shadow-sm">
           <p class="text-xs font-bold text-slate-400 mb-3">FOLDER DOKUMEN FINAL</p>
           ${o['FOLDER DOKUMEN FINAL'] 
             ? `<a href="${o['FOLDER DOKUMEN FINAL']}" target="_blank" class="text-indigo-600 hover:underline flex items-center gap-2"><i data-lucide="folder" class="w-4 h-4"></i> Buka Folder Final</a>` 
@@ -2812,7 +2829,7 @@ window.handlePublicOrder = async function(e) {
       ${workerInfoHTML}
 
       <!-- RINCIAN FINANSIAL -->
-      <div class="bg-slate-50 p-6 rounded-2xl border mb-8">
+      <div class="bg-slate-50 p-6 rounded-2xl border shadow-sm">
         <p class="text-xs font-bold text-slate-400 mb-4">RINCIAN FINANSIAL</p>
         <div class="space-y-3 text-sm">
           <div class="flex justify-between"><span>Gross</span><strong>${formatIDR(fin.gross)}</strong></div>
@@ -2824,10 +2841,10 @@ window.handlePublicOrder = async function(e) {
         </div>
       </div>
 
-      <div class="flex flex-wrap gap-3">
-        <button onclick="openOrderUpdate('${id}')" class="flex-1 py-4 gradient-primary text-white font-bold rounded-2xl shadow-lg">Update Status / Deadline</button>
-        <button onclick="generateInvoice('${id}')" class="flex-1 py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl">Cetak Invoice</button>
-        <button onclick="closeModal()" class="px-8 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl">Tutup</button>
+      <div class="flex flex-wrap gap-3 pt-2">
+        <button onclick="openOrderUpdate('${id}')" class="flex-1 py-3.5 gradient-primary text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2"><i data-lucide="edit-3" class="w-4 h-4"></i> Update Status / Deadline</button>
+        <button onclick="generateInvoice('${id}')" class="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2"><i data-lucide="file-down" class="w-4 h-4"></i> Cetak Invoice</button>
+        <button onclick="closeModal()" class="px-8 py-3.5 bg-slate-100 text-slate-600 font-bold rounded-2xl">Tutup</button>
       </div>
     </div>
   `;
@@ -3506,8 +3523,40 @@ window.handleBulkServiceUpdate = async function() {
     window.updateBulkActionBar = function() { const bar = document.getElementById('bulk-action-bar'); if(SELECTED_ORDERS.size > 0) { bar.style.display = 'block'; document.getElementById('selected-count').innerText = SELECTED_ORDERS.size; } else { bar.style.display = 'none'; } }
     window.toggleOrderSelection = function(id, checked) { if(checked) SELECTED_ORDERS.add(id); else SELECTED_ORDERS.delete(id); updateBulkActionBar(); }
     window.clearSelection = function() { SELECTED_ORDERS.clear(); document.querySelectorAll('.lc-checkbox').forEach(cb => cb.checked = false); updateBulkActionBar(); }
-    window.handleBulkUpdate = async function() { const status = document.getElementById('bulk-status-select').value; if(!status) return; showLoading(true); try { const ids = Array.from(SELECTED_ORDERS); await Promise.all(ids.map(id => serverCall('updateOrder', id, { status: status }))); clearSelection(); refreshData(); } catch(e){} finally { showLoading(false); } }
-    window.handleBulkDelete = async function() { if(!confirm("Hapus pesanan terpilih permanen?")) return; showLoading(true); try { const ids = Array.from(SELECTED_ORDERS); await Promise.all(ids.map(id => serverCall('deleteOrder', id))); clearSelection(); refreshData(); } catch(e){} finally { showLoading(false); } }
+    window.handleBulkUpdate = async function() {
+      const status = document.getElementById('bulk-status-select').value;
+      if (!status) return customAlert("⚠️ Pilih Status", "Silakan pilih status baru terlebih dahulu.", "error");
+      if (SELECTED_ORDERS.size === 0) return customAlert("⚠️ Tidak Ada Data", "Pilih minimal satu pesanan untuk diupdate.", "error");
+      if (!confirm(`Update ${SELECTED_ORDERS.size} pesanan ke status "${status}"?`)) return;
+      showLoading(true, "Memproses bulk update status...");
+      try {
+        const ids = Array.from(SELECTED_ORDERS);
+        await Promise.all(ids.map(id => serverCall('updateOrder', id, { status: status })));
+        clearSelection();
+        await refreshData();
+        customAlert("✅ Berhasil", `${ids.length} pesanan berhasil diupdate ke status ${status}.`, "success");
+      } catch (e) {
+        customAlert("❌ Gagal", "Bulk update status gagal diproses.", "error");
+      } finally {
+        showLoading(false);
+      }
+    }
+    window.handleBulkDelete = async function() {
+      if (SELECTED_ORDERS.size === 0) return customAlert("⚠️ Tidak Ada Data", "Pilih minimal satu pesanan untuk dihapus.", "error");
+      if (!confirm(`Hapus permanen ${SELECTED_ORDERS.size} pesanan terpilih?`)) return;
+      showLoading(true, "Menghapus pesanan terpilih...");
+      try {
+        const ids = Array.from(SELECTED_ORDERS);
+        await Promise.all(ids.map(id => serverCall('deleteOrder', id)));
+        clearSelection();
+        await refreshData();
+        customAlert("✅ Berhasil", `${ids.length} pesanan berhasil dihapus.`, "success");
+      } catch (e) {
+        customAlert("❌ Gagal", "Bulk delete gagal diproses.", "error");
+      } finally {
+        showLoading(false);
+      }
+    }
 
 
     // ==================== DASHBOARD: USERS & WALOG & SETTINGS ====================
@@ -3635,6 +3684,40 @@ window.handleBulkServiceUpdate = async function() {
     }).join('');
   } catch(e) {
     tbody.innerHTML = '<tr><td colspan="6" class="py-12 text-center text-red-500">Gagal memuat data WA Log</td></tr>';
+  }
+};
+
+window.clearWALog = async function() {
+  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
+  if (!ok) return;
+  showLoading(true, "Menghapus riwayat WA Log...");
+  try {
+    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
+    let called = null;
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      const runner = google.script.run;
+      called = candidates.find(name => typeof runner[name] === 'function') || null;
+    }
+
+    const targetFn = called || candidates[0];
+    const res = await serverCall(targetFn);
+    if (res && res.success === false) {
+      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
+      return;
+    }
+    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
+    renderWALog();
+  } catch (e) {
+    console.error("Clear WA Log error:", e);
+    const msg = String(e && e.message ? e.message : e);
+    if (msg.includes('tidak tersedia di Apps Script')) {
+      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
+    } else {
+      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
+    }
+  } finally {
+    showLoading(false);
   }
 };
 
@@ -5344,15 +5427,45 @@ window.handleSaveOrder = async function(e) {
   e.preventDefault();
   showLoading(true, "Menyimpan pesanan...");
 
+  const nama = document.getElementById('admin-order-nama').value.trim();
+  const hp = document.getElementById('admin-order-hp').value.trim();
+  const email = document.getElementById('admin-order-email').value.trim();
+  const layanan = document.getElementById('admin-order-svc').value.trim();
+  const qty = parseFloat(document.getElementById('admin-order-qty').value);
+  const harga = parseFloat(document.getElementById('admin-order-harga').value);
+  const rincian = document.getElementById('admin-order-rincian').value.trim();
+  const deadline = document.getElementById('admin-order-deadline').value;
+
+  if (!nama || !hp || !email || !layanan || !rincian || !deadline) {
+    showLoading(false);
+    return customAlert("⚠️ Validasi", "Semua field utama wajib diisi (nama, HP, email, layanan, rincian, deadline).", "error");
+  }
+  if (Number.isNaN(qty) || qty <= 0) {
+    showLoading(false);
+    return customAlert("⚠️ Validasi", "Kuantitas harus lebih dari 0.", "error");
+  }
+  if (Number.isNaN(harga) || harga <= 0) {
+    showLoading(false);
+    return customAlert("⚠️ Validasi", "Harga jual wajib diisi dan harus lebih dari 0.", "error");
+  }
+  if (rincian.length < 8) {
+    showLoading(false);
+    return customAlert("⚠️ Validasi", "Rincian pesanan minimal 8 karakter agar instruksi jelas.", "error");
+  }
+  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    showLoading(false);
+    return customAlert("⚠️ Validasi", "Format email tidak valid.", "error");
+  }
+
   const formData = {
-    'NAMA PELANGGAN': document.getElementById('admin-order-nama').value.trim() || '-',
-    'NO HANDPHONE': document.getElementById('admin-order-hp').value.trim() || '-',
-    'EMAIL': document.getElementById('admin-order-email').value.trim() || '-',
-    'LAYANAN': document.getElementById('admin-order-svc').value || '-',
-    'QTY': parseFloat(document.getElementById('admin-order-qty').value) || 1,
-    'TOTAL HARGA': parseFloat(document.getElementById('admin-order-harga').value) || 0,
-    'RINCIAN PESANAN': document.getElementById('admin-order-rincian').value.trim() || '-',
-    'DEADLINE': document.getElementById('admin-order-deadline').value || '',
+    'NAMA PELANGGAN': nama,
+    'NO HANDPHONE': hp,
+    'EMAIL': email,
+    'LAYANAN': layanan,
+    'QTY': qty,
+    'TOTAL HARGA': harga,
+    'RINCIAN PESANAN': rincian,
+    'DEADLINE': deadline,
     'WORKER': document.getElementById('admin-order-worker') ? document.getElementById('admin-order-worker').value : '',
     'STATUS PEMBAYARAN': document.getElementById('admin-order-statusbayar').value,
     'JENIS PEMBAYARAN': document.getElementById('admin-order-jenispembayaran').value,
