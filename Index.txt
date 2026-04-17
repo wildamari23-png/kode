@@ -25,6 +25,16 @@
   50% { transform: translateY(-30px) rotate(12deg); }
 }
 .animate-float { animation: float 6s ease-in-out infinite; }
+@keyframes logoPulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+@keyframes shimmerSlide { 0%{background-position:-200% 0;} 100%{background-position:200% 0;} }
+.logo-shell { animation: logoPulse 3.2s ease-in-out infinite; }
+.header-animated { position: relative; overflow: hidden; }
+.header-animated::after { content:""; position:absolute; inset:0; pointer-events:none; background:linear-gradient(115deg, transparent 20%, rgba(255,255,255,.32) 45%, transparent 70%); background-size:200% 100%; animation: shimmerSlide 5s linear infinite; }
+.guide-card { border:1px solid #e2e8f0; border-radius:1.5rem; padding:1rem; background:linear-gradient(180deg,#fff,#f8fafc); }
+.guide-step { display:flex; gap:.75rem; align-items:flex-start; font-size:13px; color:#334155; }
+.guide-dot { width:26px; height:26px; border-radius:999px; background:linear-gradient(135deg,#7c3aed,#c026d3); color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.salary-calc-card { background:linear-gradient(135deg,#eef2ff,#fdf4ff); border:1px solid #ddd6fe; border-radius:1rem; padding:12px; }
+.status-result-animate { animation: fadeInUp .45s ease; }
 
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
    :root {
@@ -234,7 +244,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
       <div class="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
       <div class="absolute inset-0 border-4 border-t-indigo-600 rounded-full animate-spin"></div>
     </div>
-    <p class="mt-4 font-extrabold text-indigo-600 animate-pulse uppercase tracking-widest text-[10px]">Lentera Cendekia...</p>
+    <p class="mt-4 font-extrabold text-indigo-600 animate-pulse uppercase tracking-widest text-[10px]">Santai bestie, lagi nyiapin yang paling kece ✨</p>
   </div>
 
  
@@ -288,14 +298,15 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
   </div>
   
 
-<nav id="main-nav" class="sticky top-0 z-50 glass border-b border-slate-100 px-6 py-4 flex justify-between items-center shadow-sm">
+<nav id="main-nav" class="sticky top-0 z-50 glass border-b border-slate-100 px-6 py-4 flex justify-between items-center shadow-sm header-animated">
   <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('landing')">
-    <div class="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center text-white shadow-lg">
-      <i data-lucide="sparkles"></i>
+    <div class="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center text-white shadow-lg overflow-hidden logo-shell">
+      <img id="app-logo-nav" src="" alt="Logo" class="w-full h-full object-cover hidden">
+      <i data-lucide="sparkles" class="app-logo-fallback"></i>
     </div>
     <div>
-      <h1 class="font-extrabold text-lg tracking-tight">Lentera <span class="text-indigo-600">Cendekia</span></h1>
-      <p class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Premium Academic Support</p>
+      <h1 id="web-title" class="font-extrabold text-lg tracking-tight">Lentera <span class="text-indigo-600">Cendekia</span></h1>
+      <p id="web-slogan-display" class="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Premium Academic Support</p>
     </div>
   </div>
 
@@ -778,17 +789,6 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
                    <button onclick="handleUpdateRunningText()" class="px-8 py-4 gradient-primary text-white rounded-xl font-bold shadow-lg mt-7">Update</button>
                 </div>
              </div>
-            <div id="business-chart-card" class="hidden bg-white rounded-[2rem] border shadow-sm p-5 md:p-6">
-              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
-                <h4 class="font-black text-lg flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-600"></i> Grafik Monitoring Bisnis</h4>
-                <span class="text-xs px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 font-bold">Admin & Bendahara</span>
-              </div>
-              <div class="h-[260px]">
-                <canvas id="orderPerWorkerChart"></canvas>
-              </div>
-              <div id="business-summary-note" class="mt-4 bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm text-slate-600"></div>
-            </div>
-
 	             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 	               <div class="bg-white p-5 rounded-[1.6rem] shadow-sm border border-slate-100 relative overflow-hidden">
 	                 <div class="absolute top-0 right-0 w-20 h-20 bg-emerald-100/60 rounded-full blur-2xl"></div>
@@ -827,6 +827,15 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 	                 <p class="text-[11px] text-slate-400 mt-2">Order antrean, proses, dan revisi</p>
 	               </div>
 	             </div>
+
+            <div id="business-chart-card" class="hidden bg-white rounded-[2rem] border shadow-sm p-5 md:p-6">
+              <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <h4 class="font-black text-lg flex items-center gap-2"><i data-lucide="bar-chart-3" class="w-5 h-5 text-indigo-600"></i> Grafik Monitoring Bisnis (Advanced)</h4>
+                <span class="text-xs px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 font-bold">Admin & Bendahara</span>
+              </div>
+              <div class="h-[290px]"><canvas id="orderPerWorkerChart"></canvas></div>
+              <div id="business-summary-note" class="mt-4 bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm text-slate-600"></div>
+            </div>
 
              <div class="bg-white rounded-[2.5rem] border shadow-sm overflow-hidden">
                <div class="px-10 py-8 border-b flex justify-between items-center"><h4 class="font-black text-xl">Order Terkini</h4><button onclick="refreshData()" class="p-2 text-indigo-500 bg-indigo-50 rounded-xl"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button></div>
@@ -1021,11 +1030,35 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 
           <!-- Guide -->
           <div id="sub-guide" class="hidden space-y-8">
-             <h3 class="text-3xl font-black text-slate-900">Panduan Penggunaan</h3>
+             <h3 class="text-3xl font-black text-slate-900">Panduan Penggunaan Interaktif</h3>
              <div class="bg-white p-8 rounded-[2.5rem] border shadow-sm space-y-6">
-               <div><h4 class="font-bold mb-2">Untuk Worker:</h4><p>1. Klaim order dari antrean.<br>2. Update status dan catatan.<br>3. Upload file final saat selesai.</p></div>
-               <div><h4 class="font-bold mb-2">Untuk Admin:</h4><p>1. Kelola layanan dan user.<br>2. Monitor pendapatan.<br>3. Generate laporan.</p></div>
-               <div><h4 class="font-bold mb-2">Untuk Bendahara:</h4><p>1. Input pengeluaran operasional.<br>2. Input data gaji pekerja untuk dokumentasi.<br>3. Cek Ringkasan dan riwayat keuangan.</p></div>
+               <p class="text-sm text-slate-600">Panduan ini dirancang step-by-step, informatif, dan ada aksen animasi agar onboarding tim lebih cepat.</p>
+               <div class="grid md:grid-cols-3 gap-4">
+                 <div class="guide-card animate__animated animate__fadeInUp">
+                   <h4 class="font-black text-indigo-700 mb-3">Untuk Worker</h4>
+                   <div class="space-y-3">
+                     <div class="guide-step"><span class="guide-dot">1</span><p>Klaim order dari antrean dan baca brief detail.</p></div>
+                     <div class="guide-step"><span class="guide-dot">2</span><p>Update status berkala (Proses/Revisi/Selesai) + catatan progress.</p></div>
+                     <div class="guide-step"><span class="guide-dot">3</span><p>Upload file final, pastikan checklist kualitas terpenuhi.</p></div>
+                   </div>
+                 </div>
+                 <div class="guide-card animate__animated animate__fadeInUp">
+                   <h4 class="font-black text-fuchsia-700 mb-3">Untuk Admin</h4>
+                   <div class="space-y-3">
+                     <div class="guide-step"><span class="guide-dot">1</span><p>Kelola katalog layanan, harga, dan badge diskon landing.</p></div>
+                     <div class="guide-step"><span class="guide-dot">2</span><p>Atur alur pesanan + monitor chart performa tim secara real-time.</p></div>
+                     <div class="guide-step"><span class="guide-dot">3</span><p>Pantau WA log, notifikasi, dan hasil laporan operasional.</p></div>
+                   </div>
+                 </div>
+                 <div class="guide-card animate__animated animate__fadeInUp">
+                   <h4 class="font-black text-emerald-700 mb-3">Untuk Bendahara</h4>
+                   <div class="space-y-3">
+                     <div class="guide-step"><span class="guide-dot">1</span><p>Input pengeluaran dan pendapatan tambahan dengan kategori jelas.</p></div>
+                     <div class="guide-step"><span class="guide-dot">2</span><p>Input gaji pakai kalkulator bonus-potongan dan preview take-home pay.</p></div>
+                     <div class="guide-step"><span class="guide-dot">3</span><p>Audit ringkasan keuangan dan ekspor slip/laporan berkala.</p></div>
+                   </div>
+                 </div>
+               </div>
              </div>
           </div>
 
@@ -1164,6 +1197,14 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
               <div>
                 <label class="block text-sm font-bold mb-2 text-slate-700">Slogan Bawah Nama Web</label>
                 <input id="web-slogan" type="text" class="w-full p-4 rounded-2xl border bg-slate-50 outline-none" placeholder="Premium Academic Support">
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2 text-slate-700">URL Logo Global (opsional)</label>
+                <input id="web-logo-url" type="url" class="w-full p-4 rounded-2xl border bg-slate-50 outline-none" placeholder="https://.../logo.png">
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2 text-slate-700">Label Diskon Landing (bisa diganti)</label>
+                <input id="web-discount-label" type="text" class="w-full p-4 rounded-2xl border bg-slate-50 outline-none" placeholder="$ DISKON SPESIAL">
               </div>
               <button onclick="saveWebSettings()" class="w-full py-4 gradient-primary text-white font-bold rounded-2xl shadow-lg">💾 Simpan Semua Pengaturan Website</button>
             </div>
@@ -1334,26 +1375,18 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
   </div>
 </div>
 
-<!-- MODAL CEK STATUS PESANAN (FINAL – AMAN) -->
+<!-- MODAL CEK STATUS PESANAN (MODERN DETAIL) -->
 <div id="modal-status" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[99999] p-4">
-  <div onclick="event.stopImmediatePropagation()" class="bg-white rounded-3xl max-w-lg w-full shadow-2xl p-8 relative">
-    
-    <button onclick="closeModal(); event.stopImmediatePropagation(); event.preventDefault();" 
-            class="absolute top-6 right-6 text-slate-400 hover:text-red-500 transition-colors p-2 z-10">
-      <i data-lucide="x" class="w-8 h-8"></i>
-    </button>
-
-    <h3 class="text-3xl font-black mb-6 text-[#7c3aed]">Cek Status Pesanan</h3>
-    
-    <input id="order-id-input-modal" type="text" placeholder="LC-XXXXX" 
-           class="w-full p-6 text-lg font-mono border border-[#c026d3]/30 rounded-3xl mb-6">
-
-    <button onclick="checkOrderStatusModal()" 
-            class="w-full py-6 bg-gradient-to-r from-[#7c3aed] to-[#c026d3] text-white font-bold rounded-3xl">
-      CEK SEKARANG
-    </button>
-    
-    <div id="status-result-modal" class="mt-8"></div>
+  <div onclick="event.stopImmediatePropagation()" class="bg-white rounded-3xl max-w-xl w-full shadow-2xl p-8 relative border border-fuchsia-100">
+    <button onclick="closeModal(); event.stopImmediatePropagation(); event.preventDefault();" class="absolute top-6 right-6 text-slate-400 hover:text-red-500 transition-colors p-2 z-10"><i data-lucide="x" class="w-8 h-8"></i></button>
+    <h3 class="text-3xl font-black mb-2 text-[#7c3aed]">Cek Status Pesanan</h3>
+    <p class="text-sm text-slate-500 mb-5">Masukkan ID order untuk lihat progres detail + insight pengerjaan terkini.</p>
+    <div class="relative mb-5">
+      <i data-lucide="search-check" class="w-5 h-5 text-indigo-500 absolute left-5 top-1/2 -translate-y-1/2"></i>
+      <input id="order-id-input-modal" type="text" placeholder="Contoh: LC-ABCDE" class="w-full pl-14 p-5 text-lg font-mono border border-[#c026d3]/30 rounded-3xl">
+    </div>
+    <button onclick="checkOrderStatusModal()" class="w-full py-5 bg-gradient-to-r from-[#7c3aed] to-[#c026d3] text-white font-bold rounded-3xl animate__animated animate__pulse animate__infinite animate__slower">CEK SEKARANG</button>
+    <div id="status-result-modal" class="mt-7"></div>
   </div>
 </div>
 
@@ -1362,8 +1395,8 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
   <div class="max-w-7xl mx-auto px-6 md:px-8 grid md:grid-cols-4 gap-12">
     <div>
       <div class="flex items-center gap-3 mb-6">
-        <div class="w-10 h-10 gradient-primary rounded-2xl flex items-center justify-center text-white"><i data-lucide="sparkles"></i></div>
-        <h1 class="font-extrabold text-2xl">Lentera Cendekia</h1>
+        <div class="w-10 h-10 gradient-primary rounded-2xl flex items-center justify-center text-white overflow-hidden"><img id="app-logo-footer" src="" class="w-full h-full object-cover hidden"><i data-lucide="sparkles" class="app-logo-fallback"></i></div>
+        <h1 id="footer-web-title" class="font-extrabold text-2xl">Lentera Cendekia</h1>
       </div>
       <p class="text-slate-400">Solusi premium untuk semua kebutuhan akademik Anda sejak 2022.</p>
     </div>
@@ -1434,7 +1467,8 @@ window.showLoading = function(show, message = '') {
 
   if (show) {
     loader.classList.remove('hidden');
-    let text = message || 'Memuat data...';
+    const loadingPhrases = ['Santai bestie, data lagi dipoles ✨','Sebentar ya, lagi gaskeun prosesnya 🚀','Lagi ngeracik tampilan biar makin kece 😎','Tunggu bentar, engine lagi ngebut ⚡'];
+    let text = message || loadingPhrases[Math.floor(Math.random()*loadingPhrases.length)];
     
     // Update teks loading dinamis
     const existingText = loader.querySelector('p');
@@ -1504,7 +1538,7 @@ window.showLoading = function(show, message = '') {
     window.setRunningTextModern = function(message = '') {
       const el = document.getElementById('running-text-el');
       if (!el) return;
-      const msg = String(message || 'Selamat Datang di Lentera Cendekia • Solusi Karya Akademik Premium').trim();
+      const msg = String(message || 'Welcome bestie! Lentera Cendekia siap bantu tugasmu kelar anti drama.').trim();
       const item = `
         <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/60 border border-indigo-100">
           <i data-lucide="megaphone" class="w-4 h-4 text-indigo-600"></i>
@@ -1516,6 +1550,35 @@ window.showLoading = function(show, message = '') {
       if (window.lucide) lucide.createIcons();
     }
 
+    window.applyWebIdentity = function(settings = {}) {
+      const name1 = settings.name1 || 'Lentera';
+      const name2 = settings.name2 || 'Cendekia';
+      const slogan = settings.slogan || 'Premium Academic Support';
+      const logoUrl = (settings.logoUrl || '').trim();
+      const discountLabel = settings.discountLabel || '$ DISKON SPESIAL';
+      window.WEB_SETTINGS = { ...(window.WEB_SETTINGS || {}), ...settings, discountLabel };
+
+      const titleEl = document.getElementById('web-title');
+      if (titleEl) titleEl.innerHTML = `${name1} <span class="text-indigo-600">${name2}</span>`;
+      const footerTitle = document.getElementById('footer-web-title');
+      if (footerTitle) footerTitle.textContent = `${name1} ${name2}`;
+      const sloganEl = document.getElementById('web-slogan-display');
+      if (sloganEl) sloganEl.textContent = slogan;
+
+      ['app-logo-nav','app-logo-footer'].forEach(id => {
+        const img = document.getElementById(id);
+        if (!img) return;
+        if (logoUrl) {
+          img.src = logoUrl;
+          img.classList.remove('hidden');
+          img.onerror = () => img.classList.add('hidden');
+        } else {
+          img.classList.add('hidden');
+        }
+      });
+      document.querySelectorAll('.app-logo-fallback').forEach(el => el.classList.toggle('hidden', !!logoUrl));
+    }
+
     // ==================== INITIALIZATION ====================
     window.initApp = async function() {
       showLoading(true);
@@ -1523,13 +1586,16 @@ window.showLoading = function(show, message = '') {
         ALL_SERVICES = await serverCall('getPublicServices');
         ALL_CATEGORIES = [...new Set(ALL_SERVICES.map(s => s.Kategori).filter(Boolean))];
         ALL_KATEGORI = await serverCall('getSheetData', 'LIST KATEGORI');
+        const webSettings = await serverCall('getWebSettings');
+        window.WEB_SETTINGS = webSettings || {};
+        applyWebIdentity(window.WEB_SETTINGS);
         renderCategoryTabs();
         renderCatalog();
         populatePublicServicesSelect();
         
         const rt = await serverCall('getRunningText');
         if (rt && rt.length > 0) setRunningTextModern(rt);
-        else setRunningTextModern('Selamat Datang di Lentera Cendekia!');
+        else setRunningTextModern('Halo bestie, siap gas projek akademik hari ini!');
         
         setInterval(handlePromoBubbleVisibility, 15000);
         handlePromoBubbleVisibility();
@@ -2156,6 +2222,11 @@ window.renderPengeluaranTable = function() {
       container.innerHTML = services.map(service => {
         const nama = String(service['Detail Layanan'] || service['ID LAYANAN'] || 'Layanan').trim();
         const deskripsi = String(service.Deskripsi || 'Layanan akademik premium').trim();
+        const basePrice = Number(service['Harga Publish'] || service['Harga'] || service['Harga Dasar'] || 0);
+        const minPrice = Number(service['Harga Min'] || service['Harga Minimum'] || Math.max(0, basePrice * 0.85));
+        const maxPrice = Number(service['Harga Max'] || service['Harga Maksimum'] || Math.max(basePrice, basePrice * 1.15));
+        const rangePrice = basePrice > 0 ? `${formatIDR(minPrice)} - ${formatIDR(maxPrice)}` : 'Konsultasi dulu untuk harga';
+        const discountLabel = (window.WEB_SETTINGS && window.WEB_SETTINGS.discountLabel) || '$ DISKON SPESIAL';
 
         return `
           <div class="tilt-card group bg-white/75 backdrop-blur-xl border border-white/60 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500" data-tilt data-tilt-glare data-tilt-max-glare="0.5" data-tilt-scale="1.03">
@@ -2164,8 +2235,10 @@ window.renderPengeluaranTable = function() {
               <div class="w-14 h-14 flex items-center justify-center bg-gradient-to-br from-[#7c3aed]/10 to-[#c026d3]/10 rounded-2xl mb-6 group-hover:scale-110 transition-transform">
                 <i data-lucide="${getServiceIcon(service)}" class="w-8 h-8 text-[#7c3aed]"></i>
               </div>
-              <h3 class="text-lg md:text-xl font-semibold text-slate-800 mb-2 line-clamp-2">${nama}</h3>
-              <p class="text-slate-600 text-sm flex-1 leading-relaxed line-clamp-3">${deskripsi}</p>
+              <div class="flex items-start justify-between gap-2 mb-2"><h3 class="text-lg md:text-xl font-semibold text-slate-800 line-clamp-2">${nama}</h3><span class="text-[10px] px-2 py-1 rounded-full bg-rose-100 text-rose-600 font-black whitespace-nowrap">${discountLabel}</span></div>
+              <p class="text-slate-600 text-sm leading-relaxed line-clamp-3">${deskripsi}</p>
+              <div class="mt-3 bg-indigo-50 border border-indigo-100 rounded-xl p-2 text-xs"><p class="font-black text-indigo-700">Range Harga</p><p class="text-indigo-600">${rangePrice}</p></div>
+              <p class="text-[11px] text-slate-400 mt-2">*Harga final menyesuaikan tingkat kesulitan & deadline.</p>
               
               <div class="flex gap-3 mt-auto">
                 <button onclick="showConsultModal('${nama.replace(/'/g, "\\'")}')" 
@@ -2396,21 +2469,6 @@ window.handlePublicOrder = async function(e) {
       });
       if (typeof renderOrdersKPI === 'function') renderOrdersKPI(f);
       renderOrdersFull(f);
-    }
-
-    window.renderOrdersKPI = function(orders = []) {
-      const box = document.getElementById('orders-kpi-cards');
-      if (!box) return;
-      const total = orders.length;
-      const antrean = orders.filter(o => o['TAHAPAN PESANAN'] === 'Antrean').length;
-      const proses = orders.filter(o => o['TAHAPAN PESANAN'] === 'Proses').length;
-      const selesai = orders.filter(o => o['TAHAPAN PESANAN'] === 'Selesai').length;
-      box.innerHTML = `
-        <div class="p-3 rounded-2xl bg-slate-50 border"><p class="text-[10px] uppercase font-black text-slate-400">Total</p><h4 class="text-xl font-black text-slate-800">${total}</h4></div>
-        <div class="p-3 rounded-2xl bg-blue-50 border border-blue-100"><p class="text-[10px] uppercase font-black text-blue-400">Antrean</p><h4 class="text-xl font-black text-blue-700">${antrean}</h4></div>
-        <div class="p-3 rounded-2xl bg-amber-50 border border-amber-100"><p class="text-[10px] uppercase font-black text-amber-400">Proses</p><h4 class="text-xl font-black text-amber-700">${proses}</h4></div>
-        <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-100"><p class="text-[10px] uppercase font-black text-emerald-400">Selesai</p><h4 class="text-xl font-black text-emerald-700">${selesai}</h4></div>
-      `;
     }
 
     window.renderOrdersKPI = function(orders = []) {
@@ -3661,13 +3719,16 @@ window.handleBulkServiceUpdate = async function() {
       try {
         const settings = await serverCall('getWebSettings');
         document.getElementById('web-name1').value = settings.name1 || 'Lentera'; document.getElementById('web-name2').value = settings.name2 || 'Cendekia'; document.getElementById('web-tagline1').value = settings.tagline1 || 'Solusi Terpercaya Sejak 2020'; document.getElementById('web-tagline2').value = settings.tagline2 || 'Solusi Terbaik Untuk'; document.getElementById('web-tagline3').value = settings.tagline3 || 'Karya Akademik'; document.getElementById('web-slogan').value = settings.slogan || 'Premium Academic Support';
+        document.getElementById('web-logo-url').value = settings.logoUrl || '';
+        document.getElementById('web-discount-label').value = settings.discountLabel || '$ DISKON SPESIAL';
+        applyWebIdentity(settings);
       } catch(e) {}
     }
 
     window.saveWebSettings = async function() {
       showLoading(true);
-      const payload = { name1: document.getElementById('web-name1').value.trim(), name2: document.getElementById('web-name2').value.trim(), tagline1: document.getElementById('web-tagline1').value.trim(), tagline2: document.getElementById('web-tagline2').value.trim(), tagline3: document.getElementById('web-tagline3').value.trim(), slogan: document.getElementById('web-slogan').value.trim() };
-      try { await serverCall('saveWebSettings', payload); customAlert("✅ Berhasil", "Pengaturan website disimpan.<br>Halaman akan dimuat ulang..."); setTimeout(() => { window.location.reload(); }, 1200); } catch(e) { customAlert("❌ Gagal", "Terjadi kesalahan"); } finally { showLoading(false); }
+      const payload = { name1: document.getElementById('web-name1').value.trim(), name2: document.getElementById('web-name2').value.trim(), tagline1: document.getElementById('web-tagline1').value.trim(), tagline2: document.getElementById('web-tagline2').value.trim(), tagline3: document.getElementById('web-tagline3').value.trim(), slogan: document.getElementById('web-slogan').value.trim(), logoUrl: document.getElementById('web-logo-url').value.trim(), discountLabel: document.getElementById('web-discount-label').value.trim() };
+      try { await serverCall('saveWebSettings', payload); applyWebIdentity(payload); customAlert("✅ Berhasil", "Pengaturan website disimpan.<br>Identitas brand langsung diperbarui."); } catch(e) { customAlert("❌ Gagal", "Terjadi kesalahan"); } finally { showLoading(false); }
     }
 
    window.renderWALog = async function() {
@@ -3734,230 +3795,6 @@ window.clearWALog = async function() {
     } else {
       customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
     }
-  } finally {
-    showLoading(false);
-  }
-};
-
-window.clearWALog = async function() {
-  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
-  if (!ok) return;
-  showLoading(true, "Menghapus riwayat WA Log...");
-  try {
-    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
-    let called = null;
-
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      const runner = google.script.run;
-      called = candidates.find(name => typeof runner[name] === 'function') || null;
-    }
-
-    const targetFn = called || candidates[0];
-    const res = await serverCall(targetFn);
-    if (res && res.success === false) {
-      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
-      return;
-    }
-    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
-    renderWALog();
-  } catch (e) {
-    console.error("Clear WA Log error:", e);
-    const msg = String(e && e.message ? e.message : e);
-    if (msg.includes('tidak tersedia di Apps Script')) {
-      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
-    } else {
-      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
-    }
-  } finally {
-    showLoading(false);
-  }
-};
-
-window.clearWALog = async function() {
-  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
-  if (!ok) return;
-  showLoading(true, "Menghapus riwayat WA Log...");
-  try {
-    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
-    let called = null;
-
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      const runner = google.script.run;
-      called = candidates.find(name => typeof runner[name] === 'function') || null;
-    }
-
-    const targetFn = called || candidates[0];
-    const res = await serverCall(targetFn);
-    if (res && res.success === false) {
-      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
-      return;
-    }
-    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
-    renderWALog();
-  } catch (e) {
-    console.error("Clear WA Log error:", e);
-    const msg = String(e && e.message ? e.message : e);
-    if (msg.includes('tidak tersedia di Apps Script')) {
-      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
-    } else {
-      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
-    }
-  } finally {
-    showLoading(false);
-  }
-};
-
-window.clearWALog = async function() {
-  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
-  if (!ok) return;
-  showLoading(true, "Menghapus riwayat WA Log...");
-  try {
-    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
-    let called = null;
-
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      const runner = google.script.run;
-      called = candidates.find(name => typeof runner[name] === 'function') || null;
-    }
-
-    const targetFn = called || candidates[0];
-    const res = await serverCall(targetFn);
-    if (res && res.success === false) {
-      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
-      return;
-    }
-    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
-    renderWALog();
-  } catch (e) {
-    console.error("Clear WA Log error:", e);
-    const msg = String(e && e.message ? e.message : e);
-    if (msg.includes('tidak tersedia di Apps Script')) {
-      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
-    } else {
-      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
-    }
-  } finally {
-    showLoading(false);
-  }
-};
-
-window.clearWALog = async function() {
-  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
-  if (!ok) return;
-  showLoading(true, "Menghapus riwayat WA Log...");
-  try {
-    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
-    let called = null;
-
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      const runner = google.script.run;
-      called = candidates.find(name => typeof runner[name] === 'function') || null;
-    }
-
-    const targetFn = called || candidates[0];
-    const res = await serverCall(targetFn);
-    if (res && res.success === false) {
-      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
-      return;
-    }
-    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
-    renderWALog();
-  } catch (e) {
-    console.error("Clear WA Log error:", e);
-    const msg = String(e && e.message ? e.message : e);
-    if (msg.includes('tidak tersedia di Apps Script')) {
-      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
-    } else {
-      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
-    }
-  } finally {
-    showLoading(false);
-  }
-};
-
-window.clearWALog = async function() {
-  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
-  if (!ok) return;
-  showLoading(true, "Menghapus riwayat WA Log...");
-  try {
-    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
-    let called = null;
-
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      const runner = google.script.run;
-      called = candidates.find(name => typeof runner[name] === 'function') || null;
-    }
-
-    const targetFn = called || candidates[0];
-    const res = await serverCall(targetFn);
-    if (res && res.success === false) {
-      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
-      return;
-    }
-    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
-    renderWALog();
-  } catch (e) {
-    console.error("Clear WA Log error:", e);
-    const msg = String(e && e.message ? e.message : e);
-    if (msg.includes('tidak tersedia di Apps Script')) {
-      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
-    } else {
-      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
-    }
-  } finally {
-    showLoading(false);
-  }
-};
-
-window.clearWALog = async function() {
-  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
-  if (!ok) return;
-  showLoading(true, "Menghapus riwayat WA Log...");
-  try {
-    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
-    let called = null;
-
-    if (typeof google !== 'undefined' && google.script && google.script.run) {
-      const runner = google.script.run;
-      called = candidates.find(name => typeof runner[name] === 'function') || null;
-    }
-
-    const targetFn = called || candidates[0];
-    const res = await serverCall(targetFn);
-    if (res && res.success === false) {
-      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
-      return;
-    }
-    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
-    renderWALog();
-  } catch (e) {
-    console.error("Clear WA Log error:", e);
-    const msg = String(e && e.message ? e.message : e);
-    if (msg.includes('tidak tersedia di Apps Script')) {
-      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
-    } else {
-      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
-    }
-  } finally {
-    showLoading(false);
-  }
-};
-
-window.clearWALog = async function() {
-  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
-  if (!ok) return;
-  showLoading(true, "Menghapus riwayat WA Log...");
-  try {
-    const res = await serverCall('clearWALogData');
-    if (res && res.success === false) {
-      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
-      return;
-    }
-    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
-    renderWALog();
-  } catch (e) {
-    console.error("Clear WA Log error:", e);
-    customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
   } finally {
     showLoading(false);
   }
@@ -4240,13 +4077,25 @@ window.showFinancialSummary = function() {
             </div>
           </div>
 
-          <div><label class="block text-sm font-bold mb-2 text-slate-700">Gaji Bersih / Pokok (Rp)</label><input type="number" id="gaji-jumlah" required min="0" value="0" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
-          <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-bold mb-2 text-slate-700">Bonus (Rp)</label><input type="number" id="gaji-bonus" value="0" min="0" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div><div><label class="block text-sm font-bold mb-2 text-slate-700">Potongan (Rp)</label><input type="number" id="gaji-potongan" value="0" min="0" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div></div>
+          <div><label class="block text-sm font-bold mb-2 text-slate-700">Gaji Bersih / Pokok (Rp)</label><input type="number" id="gaji-jumlah" oninput="updateGajiCalculator()" required min="0" value="0" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
+          <div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-bold mb-2 text-slate-700">Bonus (Rp)</label><input type="number" id="gaji-bonus" oninput="updateGajiCalculator()" value="0" min="0" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div><div><label class="block text-sm font-bold mb-2 text-slate-700">Potongan (Rp)</label><input type="number" id="gaji-potongan" oninput="updateGajiCalculator()" value="0" min="0" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div></div>
+          <div id="gaji-calc-preview" class="salary-calc-card text-sm"></div>
           <button type="submit" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-bold shadow-lg">Simpan Gaji</button>
         </form>
       `;
       document.getElementById('modal-overlay').classList.remove('hidden');
-      populateGajiDropdowns(); if(window.lucide) lucide.createIcons();
+      populateGajiDropdowns(); updateGajiCalculator(); if(window.lucide) lucide.createIcons();
+    }
+
+    window.updateGajiCalculator = function() {
+      const gajiPokok = Number(document.getElementById('gaji-jumlah')?.value) || 0;
+      const bonus = Number(document.getElementById('gaji-bonus')?.value) || 0;
+      const potongan = Number(document.getElementById('gaji-potongan')?.value) || 0;
+      const total = gajiPokok + bonus - potongan;
+      const el = document.getElementById('gaji-calc-preview');
+      if (!el) return;
+      const warning = total < 0 ? '<p class="text-xs text-red-600 font-bold mt-2">Total minus! Cek bonus/potongan dulu ya.</p>' : '';
+      el.innerHTML = `<p class="font-black text-indigo-700 mb-2">Simulasi Take Home Pay</p><div class="space-y-1"><div class="flex justify-between"><span>Gaji Pokok</span><strong>${formatIDR(gajiPokok)}</strong></div><div class="flex justify-between text-emerald-700"><span>+ Bonus</span><strong>${formatIDR(bonus)}</strong></div><div class="flex justify-between text-rose-700"><span>- Potongan</span><strong>${formatIDR(potongan)}</strong></div><div class="flex justify-between border-t pt-2 font-black text-slate-800"><span>Total Terima</span><strong>${formatIDR(total)}</strong></div></div>${warning}`;
     }
 
     window.handleSaveGaji = async function(e) {
@@ -5070,11 +4919,7 @@ window.renderOrderPerWorkerChart = function() {
   const canvas = document.getElementById('orderPerWorkerChart');
   if (!canvas || !DASHBOARD_CACHE || !DASHBOARD_CACHE.orders) return;
 
-  const orders = DASHBOARD_CACHE.orders.filter(o => 
-    window.safeGet(o, 'TAHAPAN PESANAN') === 'Selesai'
-  );
-
-  // Mapping Username → Nama Lengkap
+  const orders = DASHBOARD_CACHE.orders.filter(o => window.safeGet(o, 'TAHAPAN PESANAN') === 'Selesai');
   const nameMap = {};
   if (DASHBOARD_CACHE.users) {
     DASHBOARD_CACHE.users.forEach(u => {
@@ -5085,62 +4930,33 @@ window.renderOrderPerWorkerChart = function() {
   }
 
   const workerStats = {};
-
   orders.forEach(o => {
     const username = window.safeGet(o, 'WORKER');
-    if (username) {
-      const displayName = nameMap[username] || username;
-      workerStats[displayName] = (workerStats[displayName] || 0) + 1;
-    }
+    if (username) workerStats[nameMap[username] || username] = (workerStats[nameMap[username] || username] || 0) + 1;
   });
 
   const labels = Object.keys(workerStats);
-  const dataValues = Object.values(workerStats);
+  const values = Object.values(workerStats);
+  const avg = values.length ? (values.reduce((a,b)=>a+b,0) / values.length) : 0;
+  const grad = canvas.getContext('2d').createLinearGradient(0,0,0,260);
+  grad.addColorStop(0,'rgba(99,102,241,.95)');
+  grad.addColorStop(1,'rgba(192,38,211,.45)');
 
-  // Warna berbeda untuk tiap worker (bisa ditambah warna kalau worker banyak)
-  const colors = [
-    '#6366f1', '#a855f7', '#ec4899', '#f43f5e', '#f59e0b',
-    '#10b981', '#06b67f', '#0ea5e9', '#8b5cf6', '#d946ef'
-  ];
-
-  // Hapus chart lama
   if (window.orderChartInstance) window.orderChartInstance.destroy();
-
   window.orderChartInstance = new Chart(canvas, {
-    type: 'bar',
     data: {
       labels: labels.length ? labels : ['Belum ada data'],
-      datasets: [{
-        label: 'Jumlah Order Selesai',
-        data: dataValues.length ? dataValues : [0],
-        backgroundColor: labels.map((_, i) => colors[i % colors.length]),
-        borderColor: '#1e293b',
-        borderWidth: 1,
-        borderRadius: 8,
-        barThickness: 42
-      }]
+      datasets: [
+        { type:'bar', label:'Order Selesai', data: values.length ? values : [0], backgroundColor: grad, borderRadius: 12, barThickness: 34 },
+        { type:'line', label:'Rata-rata', data: (values.length ? values : [0]).map(()=>avg), borderColor:'#0f172a', borderDash:[6,4], tension:0.3, pointRadius:0 }
+      ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => ctx.raw + ' order'
-          }
-        }
-      },
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: true, labels: { usePointStyle:true, pointStyle:'circle' } } },
       scales: {
-        y: { 
-          beginAtZero: true, 
-          grid: { color: '#f1f5f9' }, 
-          ticks: { stepSize: 1, font: { size: 13 } }
-        },
-        x: { 
-          grid: { color: '#f1f5f9' },
-          ticks: { font: { size: 13 } }
-        }
+        y: { beginAtZero: true, grid: { color: '#eef2ff' }, ticks: { stepSize: 1 } },
+        x: { grid: { display: false } }
       }
     }
   });
@@ -5308,25 +5124,46 @@ window.showStatusModal = function(orderId = null) {
 window.checkOrderStatusModal = async function() {
   const id = document.getElementById('order-id-input-modal').value.trim();
   const resultDiv = document.getElementById('status-result-modal');
-  if (!id) return resultDiv.innerHTML = `<p class="text-red-500">Masukkan kode pesanan!</p>`;
-  const res = await serverCall('checkPublicOrderStatus', id);
-  resultDiv.innerHTML = res.success ? `
-    <div class="bg-emerald-50 p-6 rounded-2xl">
-      <p class="font-mono text-emerald-700">ID: <strong>${res.data.id}</strong></p>
-      <p class="font-semibold mt-2">${res.data.nama} • ${res.data.layanan}</p>
-      <p class="text-sm mt-4">Status: <span class="px-4 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">${res.data.status}</span></p>
-    </div>` : `<p class="text-red-500">${res.message}</p>`;
+  if (!id) return resultDiv.innerHTML = `<p class="text-red-500 text-sm">Masukkan kode pesanan dulu bestie 👀</p>`;
+  showLoading(true, 'Lagi cek progres order kamu...');
+  try {
+    const res = await serverCall('checkPublicOrderStatus', id);
+    if (!res.success) {
+      resultDiv.innerHTML = `<div class="status-result-animate bg-rose-50 border border-rose-100 p-5 rounded-2xl text-rose-700 text-sm font-semibold">${res.message}</div>`;
+      return;
+    }
+    const d = res.data || {};
+    const status = String(d.status || '-');
+    const statusMap = { 'Antrean': 25, 'Proses': 65, 'Revisi': 80, 'Selesai': 100, 'Batal': 100 };
+    const pct = statusMap[status] || 15;
+    resultDiv.innerHTML = `
+      <div class="status-result-animate bg-slate-50 border border-slate-200 p-5 rounded-2xl space-y-3">
+        <div class="flex items-center justify-between"><p class="font-mono text-xs text-slate-500">ID: ${d.id || id}</p><span class="text-xs px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 font-bold">${status}</span></div>
+        <p class="font-black text-slate-800">${d.nama || '-'} • ${d.layanan || '-'}</p>
+        <div>
+          <div class="h-2.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-gradient-to-r from-indigo-500 to-fuchsia-500" style="width:${pct}%"></div></div>
+          <p class="text-[11px] text-slate-500 mt-1">Progress estimasi: ${pct}%</p>
+        </div>
+        <div class="grid grid-cols-3 gap-2 text-[11px]">
+          <div class="bg-white border rounded-xl p-2"><p class="text-slate-400">Tahap 1</p><p class="font-bold">Brief</p></div>
+          <div class="bg-white border rounded-xl p-2"><p class="text-slate-400">Tahap 2</p><p class="font-bold">Produksi</p></div>
+          <div class="bg-white border rounded-xl p-2"><p class="text-slate-400">Tahap 3</p><p class="font-bold">Finalisasi</p></div>
+        </div>
+      </div>`;
+  } finally {
+    showLoading(false);
+  }
 };
 
 // Running Text Kekinian (neon + multi promo)
 async function loadRunningText() {
   try {
     const text = await serverCall('getRunningText');
-    const displayText = text || "Selamat Datang di Lentera Cendekia • Solusi Karya Akademik Premium";
+    const displayText = text || "Hai bestie! Cek promo terbaru & konsultasi gratis dulu yuk ✨";
     setRunningTextModern(displayText);
   } catch(e) {
     console.log("Running text default");
-    setRunningTextModern("Lentera Cendekia • Pengerjaan Cepat & Berkualitas");
+    setRunningTextModern("Tim Lentera siap bantu kamu kelar sebelum deadline 🚀");
   }
 }
 

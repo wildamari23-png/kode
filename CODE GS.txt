@@ -658,12 +658,12 @@ function generateInitialFolder(orderId) {
 
 function getWebSettings() {
   const props = PropertiesService.getScriptProperties();
-  return { name1: props.getProperty('WEB_NAME1') || 'Lentera', name2: props.getProperty('WEB_NAME2') || 'Cendekia', tagline1: props.getProperty('WEB_TAGLINE1') || 'Solusi Terpercaya Sejak 2020', tagline2: props.getProperty('WEB_TAGLINE2') || 'Solusi Terbaik Untuk', tagline3: props.getProperty('WEB_TAGLINE3') || 'Karya Akademik', slogan: props.getProperty('WEB_SLOGAN') || 'Premium Academic Support' };
+  return { name1: props.getProperty('WEB_NAME1') || 'Lentera', name2: props.getProperty('WEB_NAME2') || 'Cendekia', tagline1: props.getProperty('WEB_TAGLINE1') || 'Solusi Terpercaya Sejak 2020', tagline2: props.getProperty('WEB_TAGLINE2') || 'Solusi Terbaik Untuk', tagline3: props.getProperty('WEB_TAGLINE3') || 'Karya Akademik', slogan: props.getProperty('WEB_SLOGAN') || 'Premium Academic Support', logoUrl: props.getProperty('WEB_LOGO_URL') || '', discountLabel: props.getProperty('WEB_DISCOUNT_LABEL') || '$ DISKON SPESIAL' };
 }
 
 function saveWebSettings(payload) {
   const props = PropertiesService.getScriptProperties();
-  props.setProperty('WEB_NAME1', payload.name1 || 'Lentera'); props.setProperty('WEB_NAME2', payload.name2 || 'Cendekia'); props.setProperty('WEB_TAGLINE1', payload.tagline1 || ''); props.setProperty('WEB_TAGLINE2', payload.tagline2 || ''); props.setProperty('WEB_TAGLINE3', payload.tagline3 || ''); props.setProperty('WEB_SLOGAN', payload.slogan || '');
+  props.setProperty('WEB_NAME1', payload.name1 || 'Lentera'); props.setProperty('WEB_NAME2', payload.name2 || 'Cendekia'); props.setProperty('WEB_TAGLINE1', payload.tagline1 || ''); props.setProperty('WEB_TAGLINE2', payload.tagline2 || ''); props.setProperty('WEB_TAGLINE3', payload.tagline3 || ''); props.setProperty('WEB_SLOGAN', payload.slogan || ''); props.setProperty('WEB_LOGO_URL', payload.logoUrl || ''); props.setProperty('WEB_DISCOUNT_LABEL', payload.discountLabel || '$ DISKON SPESIAL');
   return { success: true };
 }
 
