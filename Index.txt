@@ -3469,6 +3469,26 @@ window.clearWALog = async function() {
   }
 };
 
+window.clearWALog = async function() {
+  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
+  if (!ok) return;
+  showLoading(true, "Menghapus riwayat WA Log...");
+  try {
+    const res = await serverCall('clearWALogData');
+    if (res && res.success === false) {
+      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
+      return;
+    }
+    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
+    renderWALog();
+  } catch (e) {
+    console.error("Clear WA Log error:", e);
+    customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
+  } finally {
+    showLoading(false);
+  }
+};
+
 
     // ==================== DASHBOARD: BENDAHARA / KEUANGAN ====================
  // Variabel pagination modal (tambahkan di atas initApp)
