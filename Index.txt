@@ -3625,6 +3625,128 @@ window.clearWALog = async function() {
   }
 };
 
+window.clearWALog = async function() {
+  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
+  if (!ok) return;
+  showLoading(true, "Menghapus riwayat WA Log...");
+  try {
+    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
+    let called = null;
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      const runner = google.script.run;
+      called = candidates.find(name => typeof runner[name] === 'function') || null;
+    }
+
+    const targetFn = called || candidates[0];
+    const res = await serverCall(targetFn);
+    if (res && res.success === false) {
+      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
+      return;
+    }
+    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
+    renderWALog();
+  } catch (e) {
+    console.error("Clear WA Log error:", e);
+    const msg = String(e && e.message ? e.message : e);
+    if (msg.includes('tidak tersedia di Apps Script')) {
+      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
+    } else {
+      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
+    }
+  } finally {
+    showLoading(false);
+  }
+};
+
+window.clearWALog = async function() {
+  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
+  if (!ok) return;
+  showLoading(true, "Menghapus riwayat WA Log...");
+  try {
+    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
+    let called = null;
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      const runner = google.script.run;
+      called = candidates.find(name => typeof runner[name] === 'function') || null;
+    }
+
+    const targetFn = called || candidates[0];
+    const res = await serverCall(targetFn);
+    if (res && res.success === false) {
+      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
+      return;
+    }
+    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
+    renderWALog();
+  } catch (e) {
+    console.error("Clear WA Log error:", e);
+    const msg = String(e && e.message ? e.message : e);
+    if (msg.includes('tidak tersedia di Apps Script')) {
+      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
+    } else {
+      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
+    }
+  } finally {
+    showLoading(false);
+  }
+};
+
+window.clearWALog = async function() {
+  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
+  if (!ok) return;
+  showLoading(true, "Menghapus riwayat WA Log...");
+  try {
+    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
+    let called = null;
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      const runner = google.script.run;
+      called = candidates.find(name => typeof runner[name] === 'function') || null;
+    }
+
+    const targetFn = called || candidates[0];
+    const res = await serverCall(targetFn);
+    if (res && res.success === false) {
+      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
+      return;
+    }
+    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
+    renderWALog();
+  } catch (e) {
+    console.error("Clear WA Log error:", e);
+    const msg = String(e && e.message ? e.message : e);
+    if (msg.includes('tidak tersedia di Apps Script')) {
+      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
+    } else {
+      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
+    }
+  } finally {
+    showLoading(false);
+  }
+};
+
+window.clearWALog = async function() {
+  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
+  if (!ok) return;
+  showLoading(true, "Menghapus riwayat WA Log...");
+  try {
+    const res = await serverCall('clearWALogData');
+    if (res && res.success === false) {
+      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
+      return;
+    }
+    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
+    renderWALog();
+  } catch (e) {
+    console.error("Clear WA Log error:", e);
+    customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
+  } finally {
+    showLoading(false);
+  }
+};
+
 
     // ==================== DASHBOARD: BENDAHARA / KEUANGAN ====================
  // Variabel pagination modal (tambahkan di atas initApp)
