@@ -25,7 +25,7 @@ const SHEETS = {
 };
 
 function doGet() {
-  return HtmlService.createTemplateFromFile('index')
+  return HtmlService.createTemplateFromFile('Index')
     .evaluate()
     .setTitle("Lentera Cendekia - Dashboard")
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
