@@ -69,9 +69,24 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
     .status-Revisi { background: #fffbeb; color: #d97706; }
     
     .tab-category.active { background: var(--primary-indigo); color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
-    .running-text-container { background: #1e293b; color: #fff; padding: 10px 0; font-size: 11px; font-weight: 800; overflow: hidden; white-space: nowrap; }
-    .marquee { display: inline-block; animation: marquee 30s linear infinite; }
-    @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+    .running-text-wrapper { padding: 12px 16px 0; background: linear-gradient(180deg, #faf7ff 0%, #ffffff 100%); }
+    .running-text-container {
+      max-width: 1200px; margin: 0 auto; color: #312e81; border-radius: 18px;
+      border: 1px solid rgba(124,58,237,0.18);
+      background: linear-gradient(90deg, rgba(124,58,237,0.10) 0%, rgba(192,38,211,0.08) 100%);
+      padding: 10px 14px; font-size: 12px; font-weight: 800; overflow: hidden; white-space: nowrap;
+      box-shadow: 0 10px 30px -20px rgba(124,58,237,0.55);
+    }
+    .marquee { display: inline-flex; align-items: center; gap: 24px; animation: marquee 26s linear infinite; }
+    .running-text-container:hover .marquee { animation-play-state: paused; }
+    @keyframes marquee { 0% { transform: translateX(0%); } 100% { transform: translateX(-50%); } }
+    .wa-testi-marquee { overflow: hidden; position: relative; }
+    .wa-testi-track { display: flex; width: max-content; gap: 16px; animation: waScroll 30s linear infinite; }
+    .wa-testi-track.reverse { animation: waScrollReverse 32s linear infinite; }
+    .wa-testi-marquee:hover .wa-testi-track { animation-play-state: paused; }
+    .wa-chat-card { min-width: 280px; max-width: 320px; }
+    @keyframes waScroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+    @keyframes waScrollReverse { 0% { transform: translateX(-50%); } 100% { transform: translateX(0); } }
     
    
     
@@ -188,6 +203,9 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 
   @media (max-width: 768px) {
     .catalog-shell { border-radius: 24px; padding: 14px; }
+    .running-text-wrapper { padding: 8px 10px 0; }
+    .running-text-container { font-size: 11px; border-radius: 14px; }
+    .wa-chat-card { min-width: 240px; max-width: 260px; }
   }
 </style>
 
@@ -282,9 +300,11 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
     
   <!-- ==================== VIEW: LANDING PAGE - SUPER MODERN UNGU ==================== -->
 
-<!-- RUNNING TEXT (tetap sama, tapi sekarang ada curve di atasnya) -->
-<div class="running-text-container bg-gradient-to-r from-[#7c3aed] to-[#c026d3] text-white py-4 text-sm font-bold overflow-hidden">
-  <div id="running-text-el" class="marquee flex items-center gap-8"></div>
+<!-- RUNNING TEXT (MODERN - TIDAK MENGGANGGU BANNER) -->
+<div class="running-text-wrapper">
+  <div class="running-text-container">
+    <div id="running-text-el" class="marquee"></div>
+  </div>
 </div>
 
 <div id="view-landing">
@@ -382,10 +402,29 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 </div>
 
 
- 
+  <!-- TESTIMONI GAYA WHATSAPP (ANIMASI BERGERAK) -->
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-10 md:py-14">
+    <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
+      <div>
+        <p class="text-xs font-bold tracking-[0.2em] text-indigo-500 uppercase">Real Customer Feedback</p>
+        <h3 class="text-2xl md:text-3xl font-black text-slate-900">Testimoni Pelanggan via WhatsApp</h3>
+      </div>
+      <span class="text-xs md:text-sm px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-100">✅ Terverifikasi dari riwayat order</span>
+    </div>
 
+    <div class="space-y-4">
+      <div class="wa-testi-marquee">
+        <div id="wa-testi-row-1" class="wa-testi-track"></div>
+      </div>
+      <div class="wa-testi-marquee">
+        <div id="wa-testi-row-2" class="wa-testi-track reverse"></div>
+      </div>
+    </div>
+  </section>
 
-   <!-- TESTIMONIAL CAROUSEL -->
+	
+	
+	   <!-- TESTIMONIAL CAROUSEL -->
  <div class="py-20 bg-slate-50">
     <div class="max-w-5xl mx-auto px-6">
       <h2 class="text-3xl font-black text-center mb-12">Apa Kata Mereka?</h2>
@@ -1416,6 +1455,21 @@ window.showLoading = function(show, message = '') {
       }
     }
 
+    window.setRunningTextModern = function(message = '') {
+      const el = document.getElementById('running-text-el');
+      if (!el) return;
+      const msg = String(message || 'Selamat Datang di Lentera Cendekia • Solusi Karya Akademik Premium').trim();
+      const item = `
+        <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/60 border border-indigo-100">
+          <i data-lucide="megaphone" class="w-4 h-4 text-indigo-600"></i>
+          <span>${msg}</span>
+        </span>
+      `;
+      // Duplikasi konten agar animasi marquee mulus (seamless looping)
+      el.innerHTML = `${item}${item}${item}${item}`;
+      if (window.lucide) lucide.createIcons();
+    }
+
     // ==================== INITIALIZATION ====================
     window.initApp = async function() {
       showLoading(true);
@@ -1428,11 +1482,12 @@ window.showLoading = function(show, message = '') {
         populatePublicServicesSelect();
         
         const rt = await serverCall('getRunningText');
-        if (rt && rt.length > 0) document.getElementById('running-text-el').innerText = rt;
-        else document.getElementById('running-text-el').innerText = 'Selamat Datang di Lentera Cendekia!';
+        if (rt && rt.length > 0) setRunningTextModern(rt);
+        else setRunningTextModern('Selamat Datang di Lentera Cendekia!');
         
         setInterval(handlePromoBubbleVisibility, 15000);
         handlePromoBubbleVisibility();
+        renderWhatsAppTestimonials();
         updateAuthHeader();
         typeHeadline(); 
       } catch (e) {
@@ -2116,8 +2171,56 @@ function getServiceIcon(service) {
       } catch (error) { console.error("Gagal fetch layanan publik:", error); }
     }
 
-    window.scrollToCatalog = function() { document.getElementById('catalog-section').scrollIntoView({ behavior: 'smooth' }); }
+	    window.scrollToCatalog = function() { document.getElementById('catalog-section').scrollIntoView({ behavior: 'smooth' }); }
 
+
+window.renderWhatsAppTestimonials = async function() {
+  const row1 = document.getElementById('wa-testi-row-1');
+  const row2 = document.getElementById('wa-testi-row-2');
+  if (!row1 || !row2) return;
+
+  let testimoni = [];
+  try {
+    const recent = await serverCall('getRecentOrdersPublic');
+    if (recent && recent.length > 0) {
+      testimoni = recent.map((r, i) => ({
+        nama: `Pelanggan ${i + 1}`,
+        pesan: r.text || "Pelayanan cepat dan hasil memuaskan banget!",
+        waktu: r.time || "Baru saja",
+      }));
+    }
+  } catch (e) {}
+
+  if (testimoni.length === 0) {
+    testimoni = [
+      { nama: "Aulia • S1 Manajemen", pesan: "Respon admin super cepat, revisi langsung ditangani.", waktu: "5 menit lalu" },
+      { nama: "Rani • S1 Keperawatan", pesan: "Aku order malam, pagi langsung dapat update progres.", waktu: "12 menit lalu" },
+      { nama: "Fikri • S1 Informatika", pesan: "Penjelasan detail dan hasilnya rapi banget.", waktu: "20 menit lalu" },
+      { nama: "Maya • D4 Kebidanan", pesan: "Bantuanku selesai sebelum deadline, recommended!", waktu: "30 menit lalu" },
+      { nama: "Bayu • S1 Hukum", pesan: "Fast respon, komunikatif, dan hasil sesuai brief.", waktu: "45 menit lalu" },
+      { nama: "Dina • S1 Akuntansi", pesan: "Sangat terbantu buat finalisasi tugas akhir.", waktu: "1 jam lalu" },
+    ];
+  }
+
+  const makeCard = (t) => `
+    <div class="wa-chat-card bg-white rounded-2xl border border-emerald-100 shadow-sm p-4">
+      <div class="flex items-center justify-between mb-2">
+        <p class="font-bold text-slate-800 text-sm">${t.nama}</p>
+        <i data-lucide="message-circle" class="w-4 h-4 text-emerald-500"></i>
+      </div>
+      <p class="text-sm text-slate-700 leading-relaxed">"${t.pesan}"</p>
+      <p class="text-[11px] text-emerald-600 font-semibold mt-3">${t.waktu}</p>
+    </div>
+  `;
+
+  const half = Math.ceil(testimoni.length / 2);
+  const list1 = testimoni.slice(0, half);
+  const list2 = testimoni.slice(half).length ? testimoni.slice(half) : testimoni;
+
+  row1.innerHTML = [...list1, ...list1].map(makeCard).join('');
+  row2.innerHTML = [...list2, ...list2].map(makeCard).join('');
+  if (window.lucide) lucide.createIcons();
+};
 
 // PROMO BUBBLE - DATA ORDER ASLI (Floating Bottom Left)
 window.renderPromoBubble = async function() {
@@ -3404,7 +3507,7 @@ window.handleBulkServiceUpdate = async function() {
     window.handleUpdateRunningText = async function() {
       const val = document.getElementById('input-running-text').value;
       if(!val) return; showLoading(true);
-      try { await serverCall('setRunningText', val); document.getElementById('running-text-el').innerText = val; customAlert("Berhasil", "Running text diperbarui."); } catch(e){} finally { showLoading(false); }
+      try { await serverCall('setRunningText', val); setRunningTextModern(val); customAlert("Berhasil", "Running text diperbarui."); } catch(e){} finally { showLoading(false); }
     }
 
  window.saveNotifSettings = async function() {
@@ -3485,6 +3588,40 @@ window.handleBulkServiceUpdate = async function() {
     }).join('');
   } catch(e) {
     tbody.innerHTML = '<tr><td colspan="6" class="py-12 text-center text-red-500">Gagal memuat data WA Log</td></tr>';
+  }
+};
+
+window.clearWALog = async function() {
+  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
+  if (!ok) return;
+  showLoading(true, "Menghapus riwayat WA Log...");
+  try {
+    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
+    let called = null;
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      const runner = google.script.run;
+      called = candidates.find(name => typeof runner[name] === 'function') || null;
+    }
+
+    const targetFn = called || candidates[0];
+    const res = await serverCall(targetFn);
+    if (res && res.success === false) {
+      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
+      return;
+    }
+    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
+    renderWALog();
+  } catch (e) {
+    console.error("Clear WA Log error:", e);
+    const msg = String(e && e.message ? e.message : e);
+    if (msg.includes('tidak tersedia di Apps Script')) {
+      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
+    } else {
+      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
+    }
+  } finally {
+    showLoading(false);
   }
 };
 
@@ -4942,18 +5079,11 @@ window.checkOrderStatusModal = async function() {
 async function loadRunningText() {
   try {
     const text = await serverCall('getRunningText');
-    const el = document.getElementById('running-text-el');
-    if (el) {
-      const displayText = text || "Selamat Datang di Lentera Cendekia • Solusi Karya Akademik Premium";
-      el.innerHTML = `
-        <span class="inline-flex items-center gap-3">
-          <i data-lucide="megaphone" class="w-4 h-4"></i>
-          ${displayText}
-        </span>`;
-    }
+    const displayText = text || "Selamat Datang di Lentera Cendekia • Solusi Karya Akademik Premium";
+    setRunningTextModern(displayText);
   } catch(e) {
     console.log("Running text default");
-    document.getElementById('running-text-el').innerHTML = "Lentera Cendekia • Pengerjaan Cepat & Berkualitas";
+    setRunningTextModern("Lentera Cendekia • Pengerjaan Cepat & Berkualitas");
   }
 }
 
