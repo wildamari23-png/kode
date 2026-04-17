@@ -1058,11 +1058,16 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 
           <!-- WA Log -->
           <div id="sub-walog" class="hidden space-y-8">
-            <div class="flex justify-between items-center">
-              <h3 class="text-3xl font-black text-slate-900">Riwayat Pengiriman WA</h3>
-              <button onclick="renderWALog()" class="px-6 py-2 bg-indigo-600 text-white rounded-2xl font-bold text-sm flex items-center gap-2 hover:bg-indigo-700">
-                <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
-              </button>
+            <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+              <h3 class="text-2xl sm:text-3xl font-black text-slate-900">Riwayat Pengiriman WA</h3>
+              <div class="flex items-center gap-2">
+                <button onclick="renderWALog()" class="px-4 sm:px-6 py-2 bg-indigo-600 text-white rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 hover:bg-indigo-700">
+                  <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh
+                </button>
+                <button onclick="clearWALog()" class="px-4 sm:px-6 py-2 bg-rose-600 text-white rounded-2xl font-bold text-xs sm:text-sm flex items-center gap-2 hover:bg-rose-700">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i> Hapus Riwayat
+                </button>
+              </div>
             </div>
             <div class="bg-white rounded-[2.5rem] border shadow-sm overflow-hidden">
               <div class="overflow-x-auto">
@@ -1127,9 +1132,9 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 
 
     <!-- Modal Overlay -->
-    <div id="modal-overlay" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div id="modal-content" class="bg-white rounded-[3rem] p-10 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl">
-        <button onclick="closeModal()" class="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-900"><i data-lucide="x" class="w-6 h-6"></i></button>
+    <div id="modal-overlay" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-4">
+      <div id="modal-content" class="bg-white rounded-[1.75rem] sm:rounded-[3rem] p-5 sm:p-8 md:p-10 max-w-2xl w-full max-h-[92vh] overflow-y-auto relative shadow-2xl border border-white/80">
+        <button onclick="closeModal()" class="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 text-slate-400 hover:text-slate-900"><i data-lucide="x" class="w-5 h-5 sm:w-6 sm:h-6"></i></button>
         <div id="modal-content-body"></div> 
       </div> 
     </div>
@@ -2325,29 +2330,43 @@ window.handlePublicOrder = async function(e) {
         </div>
       </div>
       <!-- Layanan -->
- <!-- LAYANAN - DROPDOWN MODERN & KEKINIAN -->
-<div class="flex-1">
-  <label class="block text-sm font-bold mb-2">Layanan</label>
-  <select id="admin-order-svc" onchange="updateAdminPrice('service')" 
-          class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#7c3aed] outline-none text-base font-medium">
-    <option value="">Pilih layanan...</option>
-    ${DASHBOARD_CACHE.allServices.map(s => {
-      const nama = s['Detail Layanan'] || s['ID LAYANAN'] || 'Layanan';
-      const harga = Number(s['Harga Publish']) || 0;
-      const hargaFormatted = harga.toLocaleString('id-ID');
-      return `
-        <option value="${nama}" 
-                data-price="${harga}"
-                ${o && o.LAYANAN === nama ? 'selected' : ''}>
-          ${nama} • Rp ${hargaFormatted}
-        </option>`;
-    }).join('')}
-  </select>
-</div>
-        <button type="button" onclick="openQuickAddServiceModal()"
-                class="self-end px-6 py-5 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-3xl font-bold flex items-center gap-2">
-          <i data-lucide="plus"></i> Tambah Layanan
-        </button>
+      <div class="space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-end gap-3">
+          <div class="flex-1">
+            <label class="block text-sm font-bold mb-2">Cari & Pilih Layanan</label>
+            <div class="relative">
+              <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+              <input type="text" id="admin-order-svc-search" placeholder="Ketik nama layanan..." oninput="filterAdminServiceOptions(this.value)" class="w-full pl-11 pr-4 py-4 rounded-2xl border border-slate-200 focus:border-[#7c3aed] outline-none text-sm sm:text-base bg-slate-50">
+            </div>
+          </div>
+          <button type="button" onclick="openQuickAddServiceModal()"
+                  class="px-5 py-4 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 rounded-2xl font-bold flex items-center justify-center gap-2 text-sm">
+            <i data-lucide="plus"></i> Tambah Layanan
+          </button>
+        </div>
+
+        <select id="admin-order-svc" onchange="updateAdminPrice('service');syncAdminServiceSearchFromSelect()" 
+                class="w-full p-4 sm:p-5 rounded-2xl border border-slate-200 focus:border-[#7c3aed] outline-none text-sm sm:text-base font-medium bg-white">
+          <option value="">Pilih layanan...</option>
+          ${DASHBOARD_CACHE.allServices.map(s => {
+            const nama = s['Detail Layanan'] || s['ID LAYANAN'] || 'Layanan';
+            const harga = Number(s['Harga Publish']) || 0;
+            const hargaFormatted = harga.toLocaleString('id-ID');
+            const feeA = Number(s['fee Admin(%)']) || 0;
+            const feeP = Number(s['fee perusahaan(%)']) || 0;
+            const satuan = s.Satuan || 'Unit';
+            return `
+              <option value="${nama}" 
+                      data-price="${harga}"
+                      data-fee-admin="${feeA}"
+                      data-fee-company="${feeP}"
+                      data-satuan="${satuan}"
+                      ${o && o.LAYANAN === nama ? 'selected' : ''}>
+                ${nama} • Rp ${hargaFormatted} • ${satuan} • A:${feeA}% | P:${feeP}%
+              </option>`;
+          }).join('')}
+        </select>
+        <div id="admin-service-info" class="hidden bg-indigo-50 border border-indigo-100 text-indigo-900 rounded-2xl px-4 py-3 text-xs sm:text-sm"></div>
       </div>
 
       <!-- KUANTITAS + SATUAN — BERDAMPINGAN -->
@@ -2480,6 +2499,7 @@ window.handlePublicOrder = async function(e) {
   setTimeout(() => {
     loadUniqueSatuan();           // ← Ini yang sebelumnya hilang
     if (typeof updateAdminPrice === 'function') updateAdminPrice('init');
+    if (typeof syncAdminServiceSearchFromSelect === 'function') syncAdminServiceSearchFromSelect();
     toggleDPSection();
   }, 150);
 };
@@ -2827,6 +2847,75 @@ window.updateAdminPrice = function(source = 'input') {
   document.getElementById('summary-feeadmin') && (document.getElementById('summary-feeadmin').textContent = formatIDR(feeAdminAmount));
   document.getElementById('summary-feeperusahaan') && (document.getElementById('summary-feeperusahaan').textContent = formatIDR(feePerusahaanAmount));
   document.getElementById('summary-workernet') && (document.getElementById('summary-workernet').textContent = formatIDR(workerNet));
+  if (typeof renderAdminServiceInfo === 'function') renderAdminServiceInfo();
+};
+
+window.renderAdminServiceInfo = function() {
+  const select = document.getElementById('admin-order-svc');
+  const info = document.getElementById('admin-service-info');
+  if (!select || !info) return;
+  const opt = select.options[select.selectedIndex];
+  if (!opt || !opt.value) {
+    info.classList.add('hidden');
+    info.innerHTML = '';
+    return;
+  }
+  const price = Number(opt.getAttribute('data-price')) || 0;
+  const feeA = Number(opt.getAttribute('data-fee-admin')) || 0;
+  const feeP = Number(opt.getAttribute('data-fee-company')) || 0;
+  const satuan = opt.getAttribute('data-satuan') || 'Unit';
+  info.classList.remove('hidden');
+  info.innerHTML = `
+    <div class="flex flex-wrap items-center gap-2">
+      <span class="px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 font-bold">Harga: ${formatIDR(price)}</span>
+      <span class="px-3 py-1 rounded-full bg-violet-100 text-violet-700 font-bold">Satuan: ${satuan}</span>
+      <span class="px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-bold">Fee Admin: ${feeA}%</span>
+      <span class="px-3 py-1 rounded-full bg-rose-100 text-rose-700 font-bold">Fee Perusahaan: ${feeP}%</span>
+    </div>
+  `;
+};
+
+window.syncAdminServiceSearchFromSelect = function() {
+  const select = document.getElementById('admin-order-svc');
+  const search = document.getElementById('admin-order-svc-search');
+  if (!select || !search) return;
+  search.value = select.value || '';
+  renderAdminServiceInfo();
+};
+
+window.filterAdminServiceOptions = function(query = '') {
+  const select = document.getElementById('admin-order-svc');
+  if (!select || !DASHBOARD_CACHE?.allServices) return;
+  const currentValue = select.value;
+  const q = String(query || '').toLowerCase().trim();
+
+  let filtered = DASHBOARD_CACHE.allServices;
+  if (q) {
+    filtered = DASHBOARD_CACHE.allServices.filter(s => {
+      const name = String(s['Detail Layanan'] || s['ID LAYANAN'] || '').toLowerCase();
+      const desc = String(s.Deskripsi || '').toLowerCase();
+      return name.includes(q) || desc.includes(q);
+    });
+  }
+
+  let options = '<option value="">Pilih layanan...</option>';
+  options += filtered.map(s => {
+    const nama = s['Detail Layanan'] || s['ID LAYANAN'] || 'Layanan';
+    const harga = Number(s['Harga Publish']) || 0;
+    const feeA = Number(s['fee Admin(%)']) || 0;
+    const feeP = Number(s['fee perusahaan(%)']) || 0;
+    const satuan = s.Satuan || 'Unit';
+    return `<option value="${nama}" data-price="${harga}" data-fee-admin="${feeA}" data-fee-company="${feeP}" data-satuan="${satuan}">${nama} • Rp ${harga.toLocaleString('id-ID')} • ${satuan} • A:${feeA}% | P:${feeP}%</option>`;
+  }).join('');
+
+  if (filtered.length === 0) {
+    options += `<option value="" disabled>Tidak ada layanan yang cocok</option>`;
+  }
+
+  select.innerHTML = options;
+  if (currentValue && Array.from(select.options).some(o => o.value === currentValue)) select.value = currentValue;
+  else if (!q && currentValue) select.value = currentValue;
+  renderAdminServiceInfo();
 };
     // ==================== AUTOCOMPLETE PELANGGAN - VERSI AMAN & CANGGIH ====================
 window.showCustomerSuggestions = function(query) {
@@ -2858,11 +2947,12 @@ window.showCustomerSuggestions = function(query) {
   if (filtered.length === 0) {
     suggestionsBox.innerHTML = `
       <div class="no-result">
-        <div>Tidak ditemukan pelanggan dengan kata kunci "<strong>${query}</strong>"</div>
-        <button onclick="closeCustomerSuggestions(event)" 
-                style="background:none;border:none;font-size:20px;color:#64748b;cursor:pointer;padding:2px 8px;">
-          ✕
-        </button>
+        <div class="text-left">
+          <div>Tidak ditemukan pelanggan dengan kata kunci "<strong>${query}</strong>"</div>
+          <p class="text-xs mt-2 text-indigo-600 font-semibold">✨ Pelanggan baru akan dibuat saat pesanan disimpan.</p>
+          <button type="button" onclick="useAsNewCustomer('${query.replace(/'/g, "\\'")}')" class="mt-2 px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700">Gunakan sebagai pelanggan baru</button>
+        </div>
+        <button onclick="closeCustomerSuggestions(event)" style="background:none;border:none;font-size:20px;color:#64748b;cursor:pointer;padding:2px 8px;">✕</button>
       </div>`;
     suggestionsBox.classList.remove('hidden');
     return;
@@ -2897,6 +2987,16 @@ window.closeCustomerSuggestions = function(e) {
   }
   const box = document.getElementById('customer-suggestions');
   if (box) box.classList.add('hidden');
+};
+
+window.useAsNewCustomer = function(name = '') {
+  const nameEl = document.getElementById('admin-order-nama');
+  if (nameEl) nameEl.value = name;
+  const hpEl = document.getElementById('admin-order-hp');
+  const emailEl = document.getElementById('admin-order-email');
+  if (hpEl) hpEl.value = '';
+  if (emailEl) emailEl.value = '';
+  closeCustomerSuggestions();
 };
     window.sendConfirmationWA = async function(id) {
       if (!confirm("Kirim pesan konfirmasi WhatsApp ke pelanggan ini?\n\n(Template sudah otomatis lengkap)")) return;
@@ -3280,6 +3380,26 @@ window.handleBulkServiceUpdate = async function() {
     }).join('');
   } catch(e) {
     tbody.innerHTML = '<tr><td colspan="6" class="py-12 text-center text-red-500">Gagal memuat data WA Log</td></tr>';
+  }
+};
+
+window.clearWALog = async function() {
+  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
+  if (!ok) return;
+  showLoading(true, "Menghapus riwayat WA Log...");
+  try {
+    const res = await serverCall('clearWALogData');
+    if (res && res.success === false) {
+      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
+      return;
+    }
+    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
+    renderWALog();
+  } catch (e) {
+    console.error("Clear WA Log error:", e);
+    customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
+  } finally {
+    showLoading(false);
   }
 };
 
