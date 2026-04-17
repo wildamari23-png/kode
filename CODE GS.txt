@@ -686,6 +686,24 @@ function getWALogData() {
   } catch (e) { return []; }
 }
 
+function clearWALogData() {
+  try {
+    const sheet = createWALogSheet();
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
+    }
+    return { success: true, message: "Riwayat WA Log berhasil dihapus." };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+// Alias kompatibilitas jika frontend memanggil nama fungsi berbeda
+function clearWALog() {
+  return clearWALogData();
+}
+
 function savePengeluaran(payload) {
   const sheet = SHEETS.PENGELUARAN;
   const id = "EXP-" + Utilities.getUuid().substring(0, 5).toUpperCase();
