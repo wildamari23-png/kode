@@ -1,0 +1,1035 @@
+/**
+ * LENTERA CENDEKIA - Backend Logic v4.3
+ * Fixed: All Dashboard functions, Edit/Delete Pengeluaran, robust Data Fetching.
+ */
+
+const SS = SpreadsheetApp.getActiveSpreadsheet();
+
+function createSheetIfNotExists(sheetName, headers) {
+  let sheet = SS.getSheetByName(sheetName);
+  if (!sheet) {
+    sheet = SS.insertSheet(sheetName);
+    sheet.appendRow(headers);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setHorizontalAlignment("center");
+  }
+  return sheet;
+}
+
+const SHEETS = {
+  USERS: SS.getSheetByName("Users"),
+  ORDER: SS.getSheetByName("Order"),
+  LAYANAN: SS.getSheetByName("Layanan"),
+  PENGELUARAN: SS.getSheetByName("Pengeluaran") || createSheetIfNotExists("Pengeluaran", ["ID Pengeluaran", "Tanggal", "Deskripsi", "Jumlah", "Kategori", "Input By", "Timestamp"]),
+  GAJI: SS.getSheetByName("Gaji") || createSheetIfNotExists("Gaji", ["ID Gaji", "Worker Username", "Bulan/Tahun", "Gaji Pokok", "Bonus", "Potongan", "Total Terima", "Input By", "Timestamp"])
+};
+
+function doGet() {
+  return HtmlService.createTemplateFromFile('index')
+    .evaluate()
+    .setTitle("Lentera Cendekia - Dashboard")
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+function getSheetData(sheetName) {
+  const sheet = SS.getSheetByName(sheetName);
+  if (!sheet) return [];
+  const data = sheet.getDataRange().getValues();
+  if (data.length <= 1) return [];
+  const headers = data[0];
+  return data.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((h, i) => {
+      let val = row[i];
+      if (val instanceof Date) val = val.toISOString();
+      obj[String(h).trim()] = val; // Trim to avoid spaces issues
+    });
+    return obj;
+  });
+}
+
+function getPublicServices() { 
+  const all = getSheetData("Layanan");
+  
+  return all.filter(s => {
+    const status = String(s['Status Layanan'] || '').trim();
+    
+    // HANYA yang statusnya persis "Tersedia"
+    return status === "Tersedia" || 
+           status.toLowerCase() === "tersedia";
+  });
+}
+
+function getAllServices() { 
+  return getSheetData("Layanan"); 
+}
+
+function getDashboardData(userRole, username) {
+  const orders = getSheetData("Order");
+  const services = getAllServices();   
+  const users = getSheetData("Users");
+  let filtered = orders;
+  const roleStr = String(userRole).toLowerCase();
+
+  // Only filter main monitor list if worker. Bendahara and Admin see all.
+  if (roleStr === "worker") {
+    filtered = orders.filter(o => !o.WORKER || o.WORKER === username);
+  }
+
+  return { 
+    orders: filtered.reverse(), 
+    allServices: services, 
+    users: users, 
+    runningText: getRunningText(),
+    pengeluaran: getSheetData("Pengeluaran").reverse(), 
+    gaji: getSheetData("Gaji").reverse() 
+  };
+}
+
+function login(username, password) {
+  const users = getSheetData("Users");
+  const user = users.find(u => u.Username === username && String(u.Password) === String(password));
+  if (user) { return { success: true, user: user }; }
+  return { success: false, message: "Username atau Password salah!" };
+}
+
+function updateWorkerAccount(payload) {
+  const sheet = SHEETS.USERS;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === payload.id) {
+      const row = i + 1;
+      sheet.getRange(row, 5).setValue(payload.name);
+      if (payload.password && payload.password.trim() !== "") sheet.getRange(row, 3).setValue(payload.password);
+      sheet.getRange(row, 6).setValue(payload.bank); 
+      sheet.getRange(row, 7).setValue(payload.rekening);
+      sheet.getRange(row, 9).setValue(payload.email);
+      return { success: true };
+    }
+  }
+  return { success: false, message: "User tidak ditemukan" };
+}
+
+function submitOrder(payload) {
+  const sheet = SHEETS.ORDER;
+  const id = "LC-" + Utilities.getUuid().substring(0, 5).toUpperCase();
+  const timestamp = new Date();
+  
+  const row = [
+    id,                                      // A  = ID PESANAN
+    payload.nama || '',                      // B  = NAMA PELANGGAN
+    payload.hp || '',                        // C  = NO HANDPHONE
+    payload.email || '',                     // D  = EMAIL
+    payload.layanan || '',                   // E  = LAYANAN
+    payload.rincian || '',                   // F  = RINCIAN PESANAN
+    payload.qty || 1,                        // G  = QTY
+    payload.satuan || "Unit",                // H  = SATUAN
+    payload.harga || 0,                      // I  = HARGA
+    payload.total || 0,                      // J  = TOTAL HARGA
+    "",                                      // K  = FOLDER DOKUMEN AWAL (akan di-overwrite)
+    "",                                      // L  = WORKER (kosong)
+    "Transfer",                              // M
+    "Antrean",                               // N  = TAHAPAN PESANAN
+    "Unpaid Invoice/Bill",                   // O  = STATUS PEMBAYARAN
+    0,                                       // P  = DISCOUNT
+    0,                                       // Q  = DP
+    "",                                      // R  = CATATAN WORKER
+    "LANDING PAGE",                          // S
+    timestamp,                               // T  = WAKTU INPUT PESANAN
+    payload.harga_display || 0,              // U
+    "",                                      // V
+    "",                                      // W
+    "",                                      // X
+    "",                                      // Y
+    "",                                      // Z
+    payload.deadline || ""                   // AA = DEADLINE ← DIPINDAH KE SINI
+  ];
+  
+  // Buat folder Drive
+  var rootFolder = DriveApp.getFolderById('11XCjzCeG4HtojpUUKMrObkb-aefkgkfr');
+  var orderFolder = rootFolder.createFolder(id);
+  
+  if (payload.files && payload.files.length > 0) {
+    payload.files.forEach(f => {
+      var blob = Utilities.newBlob(Utilities.base64Decode(f.data), f.mimeType, f.filename);
+      orderFolder.createFile(blob);
+    });
+  }
+  
+  row[10] = orderFolder.getUrl();   // tetap simpan link folder di kolom K
+  
+  sheet.appendRow(row);
+
+  // Notifikasi tetap sama
+  const waMessage = `Pesanan #${id} dari ${payload.nama} - ${payload.layanan}`;
+  logWA(id, payload.hp, "Konfirmasi Pesanan", waMessage, "Sukses");
+
+  const waKonfirmasi = getWhatsAppTemplate('konfirmasi', { 
+    id: id, 
+    nama: payload.nama, 
+    layanan: payload.layanan, 
+    rincian: payload.rincian, 
+    total: payload.total 
+  });
+  sendWhatsApp(payload.hp, waKonfirmasi, id);   
+
+  notifyWorkersOfNewOrder({ id: id, nama: payload.nama, layanan: payload.layanan, rincian: payload.rincian, total: payload.total, hp: payload.hp });
+  notifyInternalNewOrderWA({ id: id, nama: payload.nama, layanan: payload.layanan, rincian: payload.rincian, total: payload.total });
+
+  return { success: true, id: id };
+}
+
+function saveOrder(payload) {
+  try {
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Order");
+    if (!sheet) return { success: false, message: "Sheet 'Order' tidak ditemukan" };
+
+    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+
+    // Mapping kolom yang EXACT sesuai sheet Anda
+    let col = {};
+    headers.forEach((h, i) => {
+      const key = String(h).trim();
+      if (key === "ID PESANAN") col.id = i;
+      else if (key === "NAMA PELANGGAN") col.nama = i;
+      else if (key === "NO HANDPHONE") col.hp = i;
+      else if (key === "EMAIL") col.email = i;
+      else if (key === "LAYANAN") col.layanan = i;
+      else if (key === "RINCIAN PESANAN") col.rincian = i;
+      else if (key === "QTY") col.qty = i;
+      else if (key === "SATUAN") col.satuan = i;                    // Kolom H
+      else if (key === "HARGA SATUAN") col.hargaSatuan = i;         // Kolom I
+      else if (key === "TOTAL HARGA") col.totalHarga = i;
+      else if (key === "TAHAPAN PESANAN") col.tahapan = i;
+      else if (key === "STATUS PEMBAYARAN") col.statusBayar = i;
+      else if (key === "JENIS PEMBAYARAN") col.jenisBayar = i;
+      else if (key === "WORKER") col.worker = i;                    // Kolom P
+      else if (key === "PENGINPUT PESANAN") col.penginput = i;      // Kolom S
+      else if (key === "WAKTU  INPUT PESANAN" || key === "WAKTU INPUT PESANAN") col.waktuInput = i; // Kolom T
+      else if (key === "WAKTU DITERIMA WORKER") col.waktuTerima = i; // Kolom U
+      else if (key === "DISCOUNT") col.discount = i;
+      else if (key === "DP") col.dp = i;
+      else if (key === "Harga_display") col.hargaDisplay = i;
+      else if (key === "fee admin") col.feeAdmin = i;
+      else if (key === "fee perusahaan") col.feePerusahaan = i;
+      else if (key === "DEADLINE") col.deadline = i;
+    });
+
+    const newId = "LC-" + Utilities.getUuid().substring(0, 5).toUpperCase();
+    const row = new Array(headers.length).fill("");
+
+    // Isi data dasar dari form
+    if (col.id !== undefined) row[col.id] = newId;
+    if (col.nama !== undefined) row[col.nama] = payload["NAMA PELANGGAN"] || "";
+    if (col.hp !== undefined) row[col.hp] = payload["NO HANDPHONE"] || "";
+    if (col.email !== undefined) row[col.email] = payload["EMAIL"] || "";
+    if (col.layanan !== undefined) row[col.layanan] = payload["LAYANAN"] || "";
+    if (col.rincian !== undefined) row[col.rincian] = payload["RINCIAN PESANAN"] || "";
+    if (col.qty !== undefined) row[col.qty] = Number(payload["QTY"]) || 1;
+    if (col.totalHarga !== undefined) row[col.totalHarga] = Number(payload["TOTAL HARGA"]) || 0;
+
+    // AUTO-FILL DARI SHEET LAYANAN
+    const layananName = String(payload["LAYANAN"] || "").trim();
+    if (layananName) {
+      const services = getAllServices();
+      const svc = services.find(s => 
+        String(s['Detail Layanan'] || s['ID LAYANAN']).trim() === layananName
+      );
+      if (svc) {
+        if (col.satuan !== undefined) row[col.satuan] = svc.Satuan || "Unit";                    // Kolom H
+        if (col.hargaDisplay !== undefined) row[col.hargaDisplay] = Number(svc['Harga Publish']) || 0;
+        if (col.feeAdmin !== undefined) row[col.feeAdmin] = Number(svc['fee Admin(%)']) || 15;
+        if (col.feePerusahaan !== undefined) row[col.feePerusahaan] = Number(svc['fee perusahaan(%)']) || 5;
+      }
+    }
+
+    // AUTO PENGINPUT PESANAN (Kolom S)
+    if (col.penginput !== undefined) {
+      row[col.penginput] = payload.penginput || "ADMIN";
+    }
+
+    // Data otomatis
+    if (col.tahapan !== undefined) row[col.tahapan] = "Antrean";
+    if (col.statusBayar !== undefined) row[col.statusBayar] = payload["STATUS PEMBAYARAN"] || "Unpaid Invoice/Bill";
+    if (col.jenisBayar !== undefined) row[col.jenisBayar] = payload["JENIS PEMBAYARAN"] || "QRIS";
+    if (col.worker !== undefined) row[col.worker] = payload["WORKER"] || "";
+    if (col.waktuInput !== undefined) row[col.waktuInput] = new Date();   // Kolom T
+    if (col.discount !== undefined) row[col.discount] = Number(payload["DISCOUNT"]) || 0;
+    if (col.dp !== undefined) row[col.dp] = Number(payload["DP"]) || 0;
+    if (col.deadline !== undefined) row[col.deadline] = payload["DEADLINE"] || "";
+
+    sheet.appendRow(row);
+
+    return { success: true, id: newId, message: "Pesanan berhasil disimpan" };
+
+  } catch (e) {
+    console.error("Error saveOrder:", e);
+    return { success: false, message: e.message };
+  }
+}
+
+function updateOrder(orderId, updates) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName("Order");
+    if (!sheet) return { success: false, message: "Sheet Order tidak ditemukan" };
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+
+    // Mapping kolom
+    let idCol = -1;
+    let statusCol = -1;
+    let workerCol = -1;
+    let waktuTerimaCol = -1;   // Kolom U = WAKTU DITERIMA WORKER
+
+    for (let i = 0; i < headers.length; i++) {
+      const h = String(headers[i]).trim().toUpperCase();
+      if (h === "ID PESANAN") idCol = i;
+      else if (h === "TAHAPAN PESANAN") statusCol = i;
+      else if (h === "WORKER") workerCol = i;
+      else if (h === "WAKTU DITERIMA WORKER" || h.includes("WAKTU DITERIMA")) waktuTerimaCol = i;
+    }
+
+    if (idCol === -1) return { success: false, message: "Kolom ID PESANAN tidak ditemukan" };
+
+    // Cari baris order
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idCol]).trim() === String(orderId).trim()) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+    if (rowIndex === -1) return { success: false, message: "Order tidak ditemukan" };
+
+    // Update Status
+    if (updates.status && statusCol !== -1) {
+      sheet.getRange(rowIndex, statusCol + 1).setValue(updates.status);
+    }
+
+    // Update Worker (Kolom P)
+    if (updates.worker && workerCol !== -1) {
+      sheet.getRange(rowIndex, workerCol + 1).setValue(updates.worker);
+    }
+
+    // ==================== OTOMATIS ISI KOLOM U ====================
+    if (updates.status === "Proses" && waktuTerimaCol !== -1) {
+      const currentValue = sheet.getRange(rowIndex, waktuTerimaCol + 1).getValue();
+      // Hanya isi jika kolom U masih kosong (agar tidak menimpa timestamp lama)
+      if (!currentValue) {
+        sheet.getRange(rowIndex, waktuTerimaCol + 1).setValue(new Date());
+      }
+    }
+
+    // Update Catatan Worker (Kolom R)
+    if (updates.note) {
+      let noteCol = headers.indexOf("CATATAN WORKER");
+      if (noteCol !== -1) {
+        sheet.getRange(rowIndex, noteCol + 1).setValue(updates.note);
+      }
+    }
+
+    return { success: true, message: "Order berhasil diupdate" };
+
+  } catch (e) {
+    console.error("Error updateOrder:", e);
+    return { success: false, message: "Gagal mengupdate order" };
+  }
+}
+
+function deleteOrder(id) {
+  const sheet = SHEETS.ORDER;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === id) { sheet.deleteRow(i + 1); return { success: true }; }
+  }
+  return { success: false, message: "ID tidak ditemukan" };
+}
+
+function sendOrderEmail(to, subject, title, data) {
+  if (!to) return;
+  let htmlBody = `
+    <div style="background-color:#f8fafc; padding:40px 20px; font-family:'Segoe UI', Tahoma, sans-serif;">
+      <div style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:24px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 10px 25px rgba(0,0,0,0.05);">
+        <div style="background:#6366f1; padding:30px; text-align:center;">
+          <h1 style="color:#ffffff; margin:0; font-size:24px; font-weight:900; letter-spacing:1px;">LENTERA CENDEKIA</h1>
+        </div>
+        <div style="padding:40px;">
+          <h2 style="color:#1e293b; font-size:20px; font-weight:800; margin-top:0;">${title}</h2>
+          <p style="color:#64748b; line-height:1.6; font-size:15px;">Halo ${data.nama}, berikut update terbaru terkait pesanan Anda:</p>
+          <div style="margin:30px 0; background:#f1f5f9; padding:25px; border-radius:16px;">
+            <table style="width:100%;">
+              <tr><td style="color:#94a3b8; font-size:11px; font-weight:800; text-transform:uppercase;">ID Pesanan</td></tr>
+              <tr><td style="color:#1e293b; font-weight:700; padding-bottom:15px;">#${data.id}</td></tr>
+              <tr><td style="color:#94a3b8; font-size:11px; font-weight:800; text-transform:uppercase;">Layanan</td></tr>
+              <tr><td style="color:#1e293b; font-weight:700; padding-bottom:15px;">${data.layanan}</td></tr>
+              <tr><td style="color:#94a3b8; font-size:11px; font-weight:800; text-transform:uppercase;">Rincian</td></tr>
+              <tr><td style="color:#1e293b; font-weight:700; padding-bottom:15px;">${data.rincian}</td></tr>
+              <tr><td style="color:#94a3b8; font-size:11px; font-weight:800; text-transform:uppercase;">Status Terkini</td></tr>
+              <tr><td><span style="background:#6366f1; color:white; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:900;">${data.status}</span></td></tr>
+            </table>
+          </div>`;
+  if (data.status === 'Selesai') {
+    htmlBody += `<p style="color:#64748b; line-height:1.6; font-size:15px;">Pesanan Anda telah selesai. Silakan lakukan pembayaran sisa tagihan melalui transfer ke rekening kami. Invoice terlampir.</p>`;
+  }
+  htmlBody += `
+          <p style="color:#64748b; font-size:13px; font-style:italic;">"Kepuasan Anda adalah prioritas pengerjaan kami."</p>
+        </div>
+      </div>
+    </div>`;
+  try {
+    let options = { to: to, subject: "[LC] " + subject, htmlBody: htmlBody };
+    if (data.status === 'Selesai') {
+      const pdfBlob = generateInvoicePdf(data.id); 
+      if (pdfBlob) options.attachments = [pdfBlob];
+    }
+    MailApp.sendEmail(options);
+  } catch(e){ console.error("Error sending email:", e); }
+}
+
+function notifyWorkersOfNewOrder(order) {
+  const users = getSheetData("Users");
+  const emails = users.filter(u => String(u.Role).toLowerCase() === 'worker' && u.Email).map(u => u.Email);
+  if (emails.length === 0) return;
+
+  const htmlBody = `
+    <div style="background-color:#f8fafc; padding:40px 20px; font-family:'Segoe UI', Tahoma, sans-serif;">
+      <div style="max-width:600px; margin:0 auto; background:#ffffff; border-radius:24px; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 10px 25px rgba(0,0,0,0.05);">
+        <div style="background:#6366f1; padding:30px; text-align:center;"><h1 style="color:#ffffff; margin:0; font-size:24px; font-weight:900; letter-spacing:1px;">LENTERA CENDEKIA INTERNAL</h1></div>
+        <div style="padding:40px;">
+          <h2 style="color:#1e293b; font-size:20px; font-weight:800; margin-top:0;">🚨 Pesanan Baru Tersedia!</h2>
+          <p style="color:#64748b; line-height:1.6; font-size:15px;">Halo Tim Worker, ada pesanan baru dari pelanggan. Segera klaim jika sesuai bidang Anda!</p>
+          <div style="margin:30px 0; background:#f1f5f9; padding:25px; border-radius:16px;">
+            <table style="width:100%;">
+              <tr><td style="color:#94a3b8; font-size:11px; font-weight:800; text-transform:uppercase;">ID Pesanan</td></tr>
+              <tr><td style="color:#1e293b; font-weight:700; padding-bottom:15px;">#${order.id}</td></tr>
+              <tr><td style="color:#94a3b8; font-size:11px; font-weight:800; text-transform:uppercase;">Layanan</td></tr>
+              <tr><td style="color:#1e293b; font-weight:700; padding-bottom:15px;">${order.layanan}</td></tr>
+              <tr><td style="color:#94a3b8; font-size:11px; font-weight:800; text-transform:uppercase;">Rincian</td></tr>
+              <tr><td style="color:#1e293b; font-weight:700; padding-bottom:15px;">${order.rincian}</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  try { MailApp.sendEmail({ to: emails.join(","), subject: "[LC INTERNAL] Pemberitahuan Orderan Baru", htmlBody: htmlBody }); } catch(e){}
+}
+
+function getRecentOrdersPublic() {
+  const orders = getSheetData("Order");
+  
+  // Ambil 8 pesanan terbaru
+  return orders
+    .sort((a, b) => {
+      const dateA = a['WAKTU  INPUT PESANAN'] ? new Date(a['WAKTU  INPUT PESANAN']) : new Date(0);
+      const dateB = b['WAKTU  INPUT PESANAN'] ? new Date(b['WAKTU  INPUT PESANAN']) : new Date(0);
+      return dateB - dateA;
+    })
+    .slice(0, 8)
+    .map(o => {
+      const nama = String(o['NAMA PELANGGAN'] || 'Pelanggan').trim();
+      const namaHidden = nama.substring(0, 2) + '***';
+      
+      return {
+        id: o['ID PESANAN'] || 'LC-XXXXX',
+        text: `Order ${o.LAYANAN || 'Layanan'} oleh ${namaHidden}`,
+        time: o['WAKTU  INPUT PESANAN'] ? new Date(o['WAKTU  INPUT PESANAN']).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : 'Baru saja'
+      };
+    });
+}
+
+function getRunningText() { return PropertiesService.getScriptProperties().getProperty('RUNNING_TEXT') || "Selamat Datang di Lentera Cendekia!"; }
+function setRunningText(t) { PropertiesService.getScriptProperties().setProperty('RUNNING_TEXT', t); return true; }
+
+function saveService(s) { 
+  const sheet = SHEETS.LAYANAN; 
+  const id = s['ID LAYANAN']; 
+  const row = [
+    id || "LC-S-"+Utilities.getUuid().substring(0,4).toUpperCase(), s.Kategori, "", "", s['Detail Layanan'], s.Deskripsi, 1, s.Satuan || "Unit", 
+    Number(s['Harga dasar']) || 0, Number(s['fee Admin(%)']) || 0, Number(s['fee perusahaan(%)']) || 0, Number(s['Harga Publish']) || 0,
+    s.harga_type || "belum", s['Status Layanan'] || "Tersedia", Number(s['Harga_display']) || 0 
+  ];
+  if(id) { 
+    const data = sheet.getDataRange().getValues(); 
+    for(let i=1; i<data.length; i++) if(data[i][0]===id) { sheet.getRange(i+1,1,1,row.length).setValues([row]); return {success:true}; } 
+  } else { sheet.appendRow(row); return {success:true}; } 
+}
+
+function deleteService(id) { const sheet = SHEETS.LAYANAN; const data = sheet.getDataRange().getValues(); for(let i=1; i<data.length; i++) if(data[i][0]===id) { sheet.deleteRow(i+1); return {success:true}; } }
+function saveUser(u) { const sheet = SHEETS.USERS; const id = u['ID UNIK']; const row = [id || "USR-"+Utilities.getUuid().substring(0,4).toUpperCase(), u.Username, u.Password, "", u['Nama Lengkap Admin'], "", "", u['No HP'], u.Email, u.Role, "Offline", "", ""]; if(id) { const data = sheet.getDataRange().getValues(); for(let i=1; i<data.length; i++) if(data[i][0]===id) { sheet.getRange(i+1,1,1,row.length).setValues([row]); return {success:true}; } } else { sheet.appendRow(row); return {success:true}; } }
+function deleteUser(id) { const sheet = SHEETS.USERS; const data = sheet.getDataRange().getValues(); for(let i=1; i<data.length; i++) if(data[i][0]===id) { sheet.deleteRow(i+1); return {success:true}; } }
+
+function calculateOrderFinanceServer(o) {
+  const gross = Number(o['TOTAL HARGA']) || 0;
+  const discountP = Number(o.DISCOUNT) || 0;
+  const net = gross - (gross * discountP / 100);
+  const dpP = Number(o.DP) || 0;
+  const dpAmount = net * dpP / 100;
+  const balance = net - dpAmount;
+  return { gross, discountP, net, dpP, dpAmount, balance };
+}
+
+function generateInvoicePdf(id) {
+  const orders = getSheetData("Order");
+  const o = orders.find(x => x['ID PESANAN'] === id);
+  if (!o) return null;
+  const fin = calculateOrderFinanceServer(o);
+  const pdf = SpreadsheetApp.create('Invoice');
+  const sheet = pdf.getActiveSheet();
+  sheet.getRange('A1').setValue('LENTERA CENDEKIA');
+  sheet.getRange('A2').setValue('Premium Academic Support');
+  sheet.getRange('G1').setValue('INVOICE');
+  sheet.getRange('G2').setValue('#' + id);
+  sheet.getRange('A4').setValue('Diterbitkan Untuk:');
+  sheet.getRange('A5').setValue(o['NAMA PELANGGAN']);
+  sheet.getRange('A6').setValue('WA: ' + o['NO HANDPHONE']);
+  sheet.getRange('G4').setValue('Status Bayar:');
+  sheet.getRange('G5').setValue(o['STATUS PEMBAYARAN']);
+  sheet.getRange('G6').setValue(new Date().toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'}));
+  sheet.getRange('A8').setValue('Deskripsi');
+  sheet.getRange('F8').setValue('Qty');
+  sheet.getRange('G8').setValue('Total');
+  sheet.getRange('A9').setValue(o['LAYANAN']);
+  sheet.getRange('A10').setValue(o['RINCIAN PESANAN'] || 'Pengerjaan akademik kualitas premium.');
+  sheet.getRange('F9').setValue((o.QTY || 1) + ' ' + (o.SATUAN || 'Unit'));
+  sheet.getRange('G9').setValue(fin.gross);
+  sheet.getRange('G11').setValue('Diskon: -' + fin.gross * fin.discountP / 100);
+  sheet.getRange('G12').setValue('Net: ' + fin.net);
+  sheet.getRange('G13').setValue('DP Paid: -' + fin.dpAmount);
+  sheet.getRange('G14').setValue('SISA TAGIHAN: ' + fin.balance);
+  const url = 'https://docs.google.com/spreadsheets/d/' + pdf.getId() + '/export?exportFormat=pdf';
+  const response = UrlFetchApp.fetch(url, { headers: { authorization: 'Bearer ' + ScriptApp.getOAuthToken() } });
+  const blob = response.getBlob().setName('LC-Invoice-' + id + '.pdf');
+  DriveApp.getFileById(pdf.getId()).setTrashed(true);  
+  return blob;
+}
+
+function sendWhatsApp(phone, message, orderId = "") {
+  const TOKEN = "DKYLem6wuRH9U1xTmQt2";
+  let cleanPhone = String(phone).replace(/\D/g, '');
+  if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
+  if (!cleanPhone.startsWith('62')) cleanPhone = '62' + cleanPhone;
+
+  const url = "https://api.fonnte.com/send";
+  const payload = { "target": cleanPhone, "message": message, "url": "", "filename": "" };
+  const options = { "method": "post", "headers": { "Authorization": TOKEN }, "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true };
+
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const result = JSON.parse(response.getContentText());
+    if (result.status === true) { logWA(orderId, cleanPhone, "Pengiriman WA", message, "Sukses"); return true; } 
+    else { logWA(orderId, cleanPhone, "Pengiriman WA", message, "Gagal", result.message); return false; }
+  } catch (e) { logWA(orderId, cleanPhone, "Pengiriman WA", message, "Gagal", e.toString()); return false; }
+}
+
+function getNotifications(username, role) {
+  const lastSeenKey = 'lastSeen_' + username;
+  let lastSeen = PropertiesService.getScriptProperties().getProperty(lastSeenKey);
+  if (!lastSeen) lastSeen = '2020-01-01T00:00:00Z';
+  const lastSeenDate = new Date(lastSeen);
+  const orders = getSheetData("Order");
+  const notifications = [];
+
+  orders.forEach(o => {
+    if (!o['WAKTU  INPUT PESANAN']) return;
+    const orderTime = new Date(o['WAKTU  INPUT PESANAN']);
+    if (orderTime <= lastSeenDate) return;
+
+    let message = ""; let type = "";
+    const isAdmin = String(role).toLowerCase() === 'admin';
+    const isWorker = String(role).toLowerCase() === 'worker';
+
+    if (o['TAHAPAN PESANAN'] === "Antrean" && !o.WORKER) { if (isAdmin || isWorker) { message = `Pesanan baru #${o['ID PESANAN']} dari ${o['NAMA PELANGGAN']}`; type = "new_order"; } } 
+    else if (o['TAHAPAN PESANAN'] === "Selesai") { message = `Pesanan #${o['ID PESANAN']} telah selesai`; type = "completed"; } 
+    else if (o['TAHAPAN PESANAN'] === "Proses" || o['TAHAPAN PESANAN'] === "Revisi") { message = `Status pesanan #${o['ID PESANAN']} diubah menjadi ${o['TAHAPAN PESANAN']}`; type = "status_update"; }
+
+    if (message) notifications.push({ id: o['ID PESANAN'], time: orderTime.toISOString(), message: message, type: type, orderId: o['ID PESANAN'] });
+  });
+
+  notifications.sort((a, b) => new Date(b.time) - new Date(a.time));
+  return notifications.slice(0, 30);
+}
+
+function markNotificationsAsRead(username) { PropertiesService.getScriptProperties().setProperty('lastSeen_' + username, new Date().toISOString()); return { success: true }; }
+
+function sendOrderConfirmation(id) {
+  const orders = getSheetData("Order");
+  const order = orders.find(o => o['ID PESANAN'] === id);
+  if (!order || !order['NO HANDPHONE']) return { success: false, message: "Pesanan tidak ditemukan atau nomor HP kosong" };
+  const waData = { id: order['ID PESANAN'], nama: order['NAMA PELANGGAN'], layanan: order.LAYANAN, rincian: (order['RINCIAN PESANAN'] || '-').substring(0, 180), total: formatIDR(Number(order['TOTAL HARGA']) || 0), status: order['TAHAPAN PESANAN'] || 'Antrean' };
+  const message = getWhatsAppTemplate('konfirmasi', waData);
+  sendWhatsApp(order['NO HANDPHONE'], message);
+  return { success: true, message: `✅ Pesan konfirmasi dikirim ke ${order['NO HANDPHONE']}` };
+}
+
+function formatIDR(amount) { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount || 0); }
+
+function getWhatsAppTemplate(type, data) {
+  if (type === 'konfirmasi') {
+    return `*✅ KONFIRMASI PESANAN LENTERA CENDEKIA*\n\nYth. Bapak/Ibu *${data.nama}*,\n\nKami telah menerima pesanan Anda:\n\n🆔 *ID Pesanan* : ${data.id}\n📋 *Layanan* : ${data.layanan}\n📝 *Rincian* : ${data.rincian}\n💰 *Total Biaya* : ${data.total}\n🔄 *Status* : ${data.status}\n\nPesanan Anda masuk dalam antrean dan akan segera diproses oleh tim kami.\n\nTerima kasih telah mempercayakan karya akademik Anda kepada kami ✨\n\n*Lentera Cendekia*\n📞 0858-1169-9699`;
+  }
+  if (type === 'new_order' || type === 'status_update' || type === 'completed') return `Update pesanan #${data['ID PESANAN'] || data.id}: ${data['TAHAPAN PESANAN'] || data.status}`;
+  return typeof data === 'string' ? data : JSON.stringify(data);
+}
+
+function notifyInternalNewOrderWA(order) {
+  const users = getSheetData("Users");
+  const settings = getNotificationSettings();
+  users.forEach(u => {
+    const role = String(u.Role || '').toLowerCase().trim();
+    const phone = String(u['No HP'] || '').trim();
+    if (phone.length < 8) return;
+    let shouldSend = false;
+    if (role === 'worker' && settings.waWorker) shouldSend = true;
+    if (role === 'admin' && settings.waAdmin) shouldSend = true;
+    if (shouldSend) {
+      const message = `*🚨 PESANAN BARU MASUK*\n\n🆔 ID: ${order.id}\n👤 Pelanggan: ${order.nama}\n📋 Layanan: ${order.layanan}\n💰 Total: ${formatIDR(order.total)}\n\nSegera cek dashboard!`;
+      sendWhatsApp(phone, message);
+    }
+  });
+}
+
+function getNotificationSettings() {
+  const props = PropertiesService.getScriptProperties();
+  return { waCustomer: props.getProperty('WA_CUSTOMER') !== 'false', emailCustomer: props.getProperty('EMAIL_CUSTOMER') !== 'false', waWorker: props.getProperty('WA_WORKER') !== 'false', emailWorker: props.getProperty('EMAIL_WORKER') !== 'false', waAdmin: props.getProperty('WA_ADMIN') !== 'false', emailAdmin: props.getProperty('EMAIL_ADMIN') !== 'false' };
+}
+
+function saveNotificationSettings(settings) {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('WA_CUSTOMER', settings.waCustomer ? 'true' : 'false'); props.setProperty('EMAIL_CUSTOMER', settings.emailCustomer ? 'true' : 'false'); props.setProperty('WA_WORKER', settings.waWorker ? 'true' : 'false'); props.setProperty('EMAIL_WORKER', settings.emailWorker ? 'true' : 'false'); props.setProperty('WA_ADMIN', settings.waAdmin ? 'true' : 'false'); props.setProperty('EMAIL_ADMIN', settings.emailAdmin ? 'true' : 'false');
+  return { success: true };
+}
+
+function createWALogSheet() {
+  let sheet = SS.getSheetByName("WA Log");
+  if (!sheet) { sheet = SS.insertSheet("WA Log"); sheet.appendRow(["Timestamp", "ID Pesanan", "Nomor HP", "Tipe Pesan", "Pesan Ringkas", "Status", "Error Message"]); sheet.setFrozenRows(1); sheet.getRange("A:G").setHorizontalAlignment("center"); }
+  return sheet;
+}
+
+function logWA(orderId, phone, type, message, status, error = "") {
+  const sheet = createWALogSheet();
+  const timestampText = "'" + Utilities.formatDate(new Date(), "GMT+7", "dd/MM/yyyy HH:mm:ss");
+  const ringkas = String(message || "").substring(0, 150) + (String(message || "").length > 150 ? "..." : "");
+  sheet.appendRow([timestampText, String(orderId || "-"), String(phone || ""), String(type || "Pengiriman WA"), ringkas, String(status || "Unknown"), String(error || "")]);
+}
+
+function transferOrder(orderId, newWorkerUsername, currentUser) {  
+  const sheet = SHEETS.ORDER;
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  const idCol = headers.indexOf('ID PESANAN');
+  const workerCol = headers.indexOf('WORKER');
+
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][idCol] === orderId) {
+      sheet.getRange(i + 1, workerCol + 1).setValue(newWorkerUsername);
+      const worker = getSheetData("Users").find(u => u.Username === newWorkerUsername);
+      if (worker && worker['No HP']) {
+        const msg = `*🔄 PESANAN DITRANSFER*\n\nID: ${orderId}\nDiserahkan ke Anda oleh ${currentUser.Username || 'Admin'}\nSegera cek dashboard!`;
+        sendWhatsApp(worker['No HP'], msg);
+      }
+      return { success: true };
+    }
+  }
+  return { success: false, message: "Pesanan tidak ditemukan" };
+}
+
+function generateInitialFolder(orderId) {
+  try {
+    const rootFolderId = '11XCjzCeG4HtojpUUKMrObkb-aefkgkfr';
+    const rootFolder = DriveApp.getFolderById(rootFolderId);
+    const folders = rootFolder.getFoldersByName(orderId);
+    let folder = folders.hasNext() ? folders.next() : rootFolder.createFolder(orderId);
+    const folderUrl = folder.getUrl();
+    const sheet = SHEETS.ORDER;
+    const data = sheet.getDataRange().getValues();
+    const idCol = data[0].indexOf('ID PESANAN');
+    const folderCol = data[0].indexOf('FOLDER DOKUMEN AWAL');
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][idCol] === orderId) { sheet.getRange(i + 1, folderCol + 1).setValue(folderUrl); break; }
+    }
+    logWA(orderId, "", "Generate Folder Awal", `Folder awal dibuat: ${folderUrl}`, "Sukses");
+    return { success: true, url: folderUrl };
+  } catch(e) { return { success: false, message: e.toString() }; }
+}
+
+function getWebSettings() {
+  const props = PropertiesService.getScriptProperties();
+  return { name1: props.getProperty('WEB_NAME1') || 'Lentera', name2: props.getProperty('WEB_NAME2') || 'Cendekia', tagline1: props.getProperty('WEB_TAGLINE1') || 'Solusi Terpercaya Sejak 2020', tagline2: props.getProperty('WEB_TAGLINE2') || 'Solusi Terbaik Untuk', tagline3: props.getProperty('WEB_TAGLINE3') || 'Karya Akademik', slogan: props.getProperty('WEB_SLOGAN') || 'Premium Academic Support' };
+}
+
+function saveWebSettings(payload) {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('WEB_NAME1', payload.name1 || 'Lentera'); props.setProperty('WEB_NAME2', payload.name2 || 'Cendekia'); props.setProperty('WEB_TAGLINE1', payload.tagline1 || ''); props.setProperty('WEB_TAGLINE2', payload.tagline2 || ''); props.setProperty('WEB_TAGLINE3', payload.tagline3 || ''); props.setProperty('WEB_SLOGAN', payload.slogan || '');
+  return { success: true };
+}
+
+function getWALogData() {
+  try {
+    const sheet = SS.getSheetByName("WA Log");
+    if (!sheet) return [];
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) return [];
+
+    const result = [];
+    for (let i = data.length - 1; i >= 1; i--) {
+      const row = data[i];
+      let timestampRaw = row[0] || "";
+      if (typeof timestampRaw === 'string' && timestampRaw.startsWith("'")) { timestampRaw = timestampRaw.substring(1); } 
+      else if (timestampRaw instanceof Date) { timestampRaw = Utilities.formatDate(timestampRaw, "GMT+7", "dd/MM/yyyy HH:mm:ss"); }
+      result.push({ Timestamp: timestampRaw, "ID Pesanan": row[1] || "-", "Nomor HP": row[2] || "", "Tipe Pesan": row[3] || "", "Pesan Ringkas": row[4] || "", "Status": row[5] || "" });
+    }
+    return result;
+  } catch (e) { return []; }
+}
+
+function savePengeluaran(payload) {
+  const sheet = SHEETS.PENGELUARAN;
+  const id = "EXP-" + Utilities.getUuid().substring(0, 5).toUpperCase();
+  const timestamp = new Date();
+  const row = [ id, new Date(payload.tanggal), payload.deskripsi, Number(payload.jumlah), payload.kategori, payload.inputBy, timestamp ];
+  sheet.appendRow(row);
+  return { success: true, id: id };
+}
+
+function updatePengeluaran(payload) {
+  const sheet = SHEETS.PENGELUARAN;
+  const data = sheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === payload.id) {
+      const row = i + 1;
+      
+      sheet.getRange(row, 2).setValue(new Date(payload.tanggal));
+      sheet.getRange(row, 3).setValue(payload.deskripsi);
+      sheet.getRange(row, 4).setValue(Number(payload.jumlah));
+      sheet.getRange(row, 5).setValue(payload.kategori);
+
+      // Jika kategori Gaji Pegawai → update juga di Gaji
+      if (payload.kategori === "Gaji Pegawai") {
+        updateRelatedGaji(payload.deskripsi, Number(payload.jumlah));
+      }
+
+      return { success: true };
+    }
+  }
+  return { success: false, message: "ID tidak ditemukan" };
+}
+
+function deletePengeluaran(id) {
+  const sheet = SHEETS.PENGELUARAN;
+  const data = sheet.getDataRange().getValues();
+  
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === id) { 
+      const kategori = String(data[i][4] || '').trim();
+      const deskripsi = String(data[i][2] || '').trim();
+      const jumlah = Number(data[i][3]) || 0;
+
+      if (kategori === "Gaji Pegawai") {
+        deleteRelatedGaji(deskripsi, jumlah);
+      }
+
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false, message: "ID Pengeluaran tidak ditemukan" };
+}
+
+function saveGaji(payload) {
+  const sheet = SHEETS.GAJI;
+  const id = "SAL-" + Utilities.getUuid().substring(0, 5).toUpperCase();
+  const timestamp = new Date();
+  const total = Number(payload.jumlahGaji) + Number(payload.bonus) - Number(payload.potongan);
+  const row = [ id, payload.workerUsername, payload.bulanTahun, Number(payload.jumlahGaji), Number(payload.bonus), Number(payload.potongan), total, payload.inputBy, timestamp ];
+  sheet.appendRow(row);
+  return { success: true, id: id };
+}
+
+function getWorkers() {
+  return getSheetData("Users").filter(u => String(u.Role).toLowerCase() === 'worker');
+}
+
+function deleteRelatedGaji(deskripsiPengeluaran, jumlahPengeluaran) {
+  const gajiSheet = SHEETS.GAJI;
+  const gData = gajiSheet.getDataRange().getValues();
+  
+  for (let i = 1; i < gData.length; i++) {
+    let bulanTahunRaw = gData[i][2];                    // Kolom Bulan/Tahun
+    const totalTerima = Number(gData[i][6]) || 0;      // Kolom Total Terima
+
+    // Parse jika berupa Date atau ISO String
+    let bulanTahunText = "";
+    if (bulanTahunRaw instanceof Date) {
+      bulanTahunText = Utilities.formatDate(bulanTahunRaw, "GMT+7", "MMMM yyyy");
+    } else if (typeof bulanTahunRaw === 'string' && bulanTahunRaw.includes('T')) {
+      const dateObj = new Date(bulanTahunRaw);
+      if (!isNaN(dateObj)) {
+        bulanTahunText = Utilities.formatDate(dateObj, "GMT+7", "MMMM yyyy");
+      }
+    } else {
+      bulanTahunText = String(bulanTahunRaw || "").trim();
+    }
+
+    const jumlahCocok = Math.abs(totalTerima - jumlahPengeluaran) < 10000;
+    const bulanCocok = deskripsiPengeluaran.toLowerCase().includes(bulanTahunText.toLowerCase());
+
+    if (jumlahCocok && bulanCocok) {
+      gajiSheet.deleteRow(i + 1);
+      console.log(`✅ Gaji berhasil dihapus otomatis: ${bulanTahunText}`);
+      return true;
+    }
+  }
+  
+  console.log("⚠️ Tidak menemukan record Gaji yang cocok untuk dihapus");
+  return false;
+}
+
+function updateRelatedGaji(newDeskripsi, newJumlah) {
+  const gajiSheet = SHEETS.GAJI;
+  const gData = gajiSheet.getDataRange().getValues();
+  
+  for (let i = 1; i < gData.length; i++) {
+    const bulanTahun = String(gData[i][2] || "").trim();
+    const totalTerima = Number(gData[i][6]) || 0;
+
+    if (Math.abs(totalTerima - newJumlah) < 10000 && newDeskripsi.includes(bulanTahun)) {
+      gajiSheet.getRange(i + 1, 7).setValue(newJumlah);  // Update Total Terima
+      return true;
+    }
+  }
+  return false;
+}
+
+// ==================== SHEET PENDAPATAN ====================
+const PENDAPATAN_SHEET = SS.getSheetByName("Pendapatan") || createSheetIfNotExists("Pendapatan", 
+  ["ID Pendapatan", "Tanggal", "Deskripsi", "Jumlah", "Kategori", "Input By", "Timestamp"]);
+
+// ==================== FUNGSI PENDAPATAN ====================
+function savePendapatan(payload) {
+  const sheet = PENDAPATAN_SHEET;
+  const id = "INC-" + Utilities.getUuid().substring(0, 5).toUpperCase();
+  const row = [
+    id,
+    new Date(payload.tanggal),
+    payload.deskripsi,
+    Number(payload.jumlah),
+    payload.kategori || "Lainnya",
+    payload.inputBy,
+    new Date()
+  ];
+  sheet.appendRow(row);
+  return { success: true, id: id };
+}
+
+function updatePendapatan(payload) {
+  const sheet = PENDAPATAN_SHEET;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === payload.id) {
+      const row = i + 1;
+      sheet.getRange(row, 2).setValue(new Date(payload.tanggal));
+      sheet.getRange(row, 3).setValue(payload.deskripsi);
+      sheet.getRange(row, 4).setValue(Number(payload.jumlah));
+      sheet.getRange(row, 5).setValue(payload.kategori);
+      return { success: true };
+    }
+  }
+  return { success: false, message: "ID tidak ditemukan" };
+}
+
+function deletePendapatan(id) {
+  const sheet = PENDAPATAN_SHEET;
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === id) {
+      sheet.deleteRow(i + 1);
+      return { success: true };
+    }
+  }
+  return { success: false, message: "ID tidak ditemukan" };
+}
+
+function getPendapatanData() {
+  return getSheetData("Pendapatan").reverse();
+}
+
+// Update getDashboardData agar Bendahara dapat data pendapatan
+function getDashboardData(userRole, username) {
+  const orders = getSheetData("Order");
+  const services = getAllServices();
+  const users = getSheetData("Users");
+  let filtered = orders;
+
+  if (String(userRole).toLowerCase() === "worker") {
+    filtered = orders.filter(o => !o.WORKER || o.WORKER === username);
+  }
+
+  return { 
+    orders: filtered.reverse(), 
+    allServices: services, 
+    users: users, 
+    runningText: getRunningText(),
+    pengeluaran: getSheetData("Pengeluaran").reverse(), 
+    gaji: getSheetData("Gaji").reverse(),
+    pendapatan: getPendapatanData()   // ← BARU
+  };
+}
+
+
+// ==================== CLAIM ORDER - VERSI ROBUST ====================
+function claimOrder(orderId, username) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName("Order");
+    if (!sheet) return { success: false, message: "Sheet Order tidak ditemukan" };
+
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+
+    // Cari kolom dengan tepat
+    let workerCol = -1;        // Kolom P → WORKER (nama worker)
+    let timestampCol = -1;     // Kolom U → WAKTU DITERIMA WORKER
+
+    for (let i = 0; i < headers.length; i++) {
+      const h = String(headers[i]).trim().toUpperCase();
+      if (h === "WORKER") {
+        if (workerCol === -1) workerCol = i + 1;      // Kolom pertama = P
+        else timestampCol = i + 1;                    // Kolom kedua = U
+      }
+    }
+
+    if (workerCol === -1) return { success: false, message: "Kolom WORKER (P) tidak ditemukan" };
+
+    // Cari baris order
+    let rowToUpdate = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][0]).trim() === String(orderId).trim()) {
+        rowToUpdate = i + 1;
+        break;
+      }
+    }
+
+    if (rowToUpdate === -1) return { success: false, message: "Order tidak ditemukan" };
+
+    // Cek sudah di-claim atau belum
+    if (data[rowToUpdate - 1][workerCol - 1]) {
+      return { success: false, message: "Order sudah diambil orang lain" };
+    }
+
+    const now = new Date();
+
+    // Isi kolom P (nama worker)
+    sheet.getRange(rowToUpdate, workerCol).setValue(username);
+
+    // Isi kolom U (waktu diterima worker)
+    if (timestampCol !== -1) {
+      sheet.getRange(rowToUpdate, timestampCol).setValue(now);
+    }
+
+    return { success: true, message: "Berhasil mengambil pekerjaan" };
+
+  } catch (e) {
+    console.error("Error claimOrder:", e);
+    return { success: false, message: "Terjadi kesalahan sistem" };
+  }
+}
+
+// ==================== BULK UPDATE STATUS LAYANAN ====================
+function bulkUpdateServiceStatus(payload) {
+  const { ids, status } = payload;
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return { success: false, message: "Tidak ada ID layanan yang dipilih" };
+  }
+  
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("LAYANAN") || 
+                SpreadsheetApp.getActiveSpreadsheet().getSheetByName("SERVICES") || 
+                SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0];
+  
+  let idCol = -1, statusCol = -1;
+  
+  for (let i = 0; i < headers.length; i++) {
+    if (headers[i] === "ID LAYANAN" || headers[i] === "ID") idCol = i;
+    if (headers[i] === "Status Layanan" || headers[i] === "Status") statusCol = i;
+  }
+  
+  if (idCol === -1 || statusCol === -1) {
+    return { success: false, message: "Kolom ID LAYANAN atau Status Layanan tidak ditemukan" };
+  }
+  
+  let updated = 0;
+  
+  for (let i = 1; i < data.length; i++) {
+    const rowId = String(data[i][idCol]);
+    if (ids.includes(rowId)) {
+      sheet.getRange(i + 1, statusCol + 1).setValue(status);
+      updated++;
+    }
+  }
+  
+  return { 
+    success: true, 
+    message: `${updated} layanan berhasil diupdate menjadi "${status}"` 
+  };
+}
+// === FUNGSI BARU UNTUK LANDING PAGE ===
+
+function getPromoImages() {
+  try {
+    const folderId = '15uBVtfI6y0KY5GBtgSaCQljl5zDcdyxq';
+    const folder = DriveApp.getFolderById(folderId);
+    const files = folder.getFiles();
+    const images = [];
+
+    while (files.hasNext()) {
+      const file = files.next();
+      if (file.getMimeType().startsWith('image/')) {
+        const blob = file.getBlob();
+        const base64 = Utilities.base64Encode(blob.getBytes());
+        const mime = blob.getContentType();
+        
+        images.push({
+          name: file.getName(),
+          url: `data:${mime};base64,${base64}`   // ← BASE64 OTOMATIS
+        });
+      }
+    }
+    
+    console.log(`✅ getPromoImages: ${images.length} gambar (base64) siap`);
+    return images;
+  } catch (e) {
+    console.error("getPromoImages error:", e);
+    return [];
+  }
+}
+function checkPublicOrderStatus(orderId) {
+  const orders = getSheetData("Order");
+  const order = orders.find(o => String(o['ID PESANAN']).trim().toUpperCase() === String(orderId).trim().toUpperCase());
+  
+  if (!order) return { success: false, message: "Kode pesanan tidak ditemukan" };
+
+  return {
+    success: true,
+    data: {
+      id: order['ID PESANAN'],
+      nama: order['NAMA PELANGGAN'],
+      layanan: order.LAYANAN,
+      status: order['TAHAPAN PESANAN'] || 'Antrean',
+      payment: order['STATUS PEMBAYARAN'] || 'Belum Lunas',
+      rincian: (order['RINCIAN PESANAN'] || '').substring(0, 120) + '...',
+      deadline: order.DEADLINE ? new Date(order.DEADLINE).toLocaleDateString('id-ID') : '-',
+      created: order['WAKTU  INPUT PESANAN'] ? new Date(order['WAKTU  INPUT PESANAN']).toLocaleDateString('id-ID') : '-'
+    }
+  };
+  
+}
+
+
+
