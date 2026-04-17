@@ -101,6 +101,11 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 
     .order-tab { cursor: pointer; padding: 10px 20px; border-bottom: 2px solid transparent; transition: all 0.3s; }
     .order-tab.active { border-bottom: 2px solid var(--primary-indigo); font-weight: bold; color: var(--primary-indigo); }
+    .nav-link.active { background: linear-gradient(90deg, rgba(124,58,237,0.12), rgba(192,38,211,0.08)); color: #6d28d9; }
+    .mobile-tab-wrap { scrollbar-width: none; -ms-overflow-style: none; }
+    .mobile-tab-wrap::-webkit-scrollbar { display: none; }
+    .mobile-tab-btn { white-space: nowrap; border: 1px solid #e5e7eb; border-radius: 999px; padding: 9px 14px; font-size: 12px; font-weight: 800; color: #475569; background: #fff; }
+    .mobile-tab-btn.active { background: linear-gradient(135deg, #7c3aed, #c026d3); color: #fff; border-color: transparent; box-shadow: 0 10px 24px -16px rgba(124,58,237,.8); }
 
     .catalog-card { transition: transform 0.4s ease, box-shadow 0.4s ease; border: 2px solid transparent; }
     .catalog-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -10px rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.3); }
@@ -696,7 +701,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
         <!-- SIDEBAR -->
-        <aside class="lg:col-span-3 space-y-6">
+        <aside class="hidden lg:block lg:col-span-3 space-y-6">
           <div class="bg-white p-6 rounded-[2.5rem] border shadow-sm flex items-center gap-4">
              <div id="profile-initial" class="w-12 h-12 gradient-primary rounded-xl flex items-center justify-center text-white text-xl font-black">?</div>
              <div class="overflow-hidden">
@@ -733,7 +738,30 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
         </aside>
 
         <!-- KONTEN DASHBOARD -->
-        <div class="lg:col-span-9 space-y-8">
+        <div class="lg:col-span-9 space-y-6 md:space-y-8">
+          <!-- TOP TAB MOBILE -->
+          <div class="lg:hidden bg-white border rounded-3xl p-3 shadow-sm">
+            <div class="mobile-tab-wrap flex gap-2 overflow-x-auto">
+              <button onclick="showSubView('monitor')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="layout" class="w-3.5 h-3.5"></i> Ringkasan</button>
+              <button onclick="showSubView('orders')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="briefcase" class="w-3.5 h-3.5"></i> Pesanan</button>
+              <button onclick="showSubView('guide')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="book-open" class="w-3.5 h-3.5"></i> Panduan</button>
+              <button onclick="showSubView('settings')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="settings" class="w-3.5 h-3.5"></i> Akun</button>
+
+              <div id="admin-only-nav-mobile" class="hidden flex gap-2">
+                <button onclick="showSubView('services')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="package" class="w-3.5 h-3.5"></i> Layanan</button>
+                <button onclick="showSubView('users')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="users" class="w-3.5 h-3.5"></i> Tim</button>
+                <button onclick="showSubView('walog')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="list" class="w-3.5 h-3.5"></i> WA Log</button>
+                <button onclick="showSubView('notifications')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="bell" class="w-3.5 h-3.5"></i> Notif</button>
+                <button onclick="showSubView('website')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="globe" class="w-3.5 h-3.5"></i> Website</button>
+              </div>
+
+              <div id="bendahara-only-nav-mobile" class="hidden flex gap-2">
+                <button onclick="showSubView('pengeluaran')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="dollar-sign" class="w-3.5 h-3.5"></i> Pengeluaran</button>
+                <button onclick="showSubView('pendapatan')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="trending-up" class="w-3.5 h-3.5"></i> Pendapatan</button>
+                <button onclick="showSubView('gaji')" class="nav-link mobile-tab-btn flex items-center gap-1.5"><i data-lucide="wallet" class="w-3.5 h-3.5"></i> Gaji</button>
+              </div>
+            </div>
+          </div>
           
           <!-- MONITOR / RINGKASAN -->
           <div id="sub-monitor" class="space-y-8">
@@ -758,29 +786,44 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
   </div>
 </div>-->
 
-             <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-               <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col justify-center">
-                 <p id="label-stat-income" class="text-slate-400 text-[10px] font-black uppercase mb-1">Total Pendapatan</p>
-                 <h3 id="stat-income" class="text-2xl font-black text-emerald-600">Rp 0</h3>
-               </div>
-               
-               <div class="bg-emerald-50 p-6 rounded-[2rem] shadow-sm border border-emerald-100 flex flex-col justify-center">
-                 <p id="label-stat-pengeluaran" class="text-emerald-500 text-[10px] font-black uppercase mb-1">Total Gaji Diterima</p>
-                 <h3 id="stat-pengeluaran" class="text-2xl font-black text-emerald-600">Rp 0</h3>
-               </div>
-               
-               <div onclick="showFinancialSummary()" class="cursor-pointer gradient-primary p-6 rounded-[2rem] text-white shadow-xl hover:scale-105 transition-all flex flex-col justify-center relative overflow-hidden">
-                 <div class="absolute -right-4 -top-4 opacity-10"><i data-lucide="wallet" class="w-24 h-24"></i></div>
-                 <p id="label-stat-sisa" class="text-white/70 text-[10px] font-black uppercase mb-1 relative z-10">Total Saldo (Order + Gaji)</p>
-                 <h3 id="stat-net-balance" class="text-2xl font-black relative z-10">Rp 0</h3>
-                 <p class="text-[9px] mt-2 text-white/80 underline relative z-10 flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> Lihat Rincian</p>
-               </div>
-               
-               <div class="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 flex flex-col justify-center">
-                 <p class="text-slate-400 text-[10px] font-black uppercase mb-1">Proyek Aktif</p>
-                 <h3 id="stat-pending" class="text-3xl font-black text-indigo-500">0</h3>
-               </div>
-             </div>
+	             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+	               <div class="bg-white p-5 rounded-[1.6rem] shadow-sm border border-slate-100 relative overflow-hidden">
+	                 <div class="absolute top-0 right-0 w-20 h-20 bg-emerald-100/60 rounded-full blur-2xl"></div>
+	                 <div class="flex items-start justify-between">
+	                   <p id="label-stat-income" class="text-slate-400 text-[10px] font-black uppercase mb-1">Total Pendapatan</p>
+	                   <span class="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center"><i data-lucide="trending-up" class="w-4 h-4 text-emerald-600"></i></span>
+	                 </div>
+	                 <h3 id="stat-income" class="text-2xl md:text-3xl font-black text-emerald-600 mt-1">Rp 0</h3>
+	                 <p class="text-[11px] text-slate-400 mt-2">Akumulasi pemasukan periode aktif</p>
+	               </div>
+	               
+	               <div class="bg-white p-5 rounded-[1.6rem] shadow-sm border border-slate-100 relative overflow-hidden">
+	                 <div class="absolute top-0 right-0 w-20 h-20 bg-cyan-100/60 rounded-full blur-2xl"></div>
+	                 <div class="flex items-start justify-between">
+	                   <p id="label-stat-pengeluaran" class="text-slate-400 text-[10px] font-black uppercase mb-1">Total Gaji Diterima</p>
+	                   <span class="w-8 h-8 rounded-xl bg-cyan-50 flex items-center justify-center"><i data-lucide="banknote" class="w-4 h-4 text-cyan-600"></i></span>
+	                 </div>
+	                 <h3 id="stat-pengeluaran" class="text-2xl md:text-3xl font-black text-cyan-600 mt-1">Rp 0</h3>
+	                 <p class="text-[11px] text-slate-400 mt-2">Total pengeluaran untuk kompensasi</p>
+	               </div>
+	               
+	               <div onclick="showFinancialSummary()" class="cursor-pointer gradient-primary p-5 rounded-[1.6rem] text-white shadow-xl hover:scale-[1.02] transition-all relative overflow-hidden">
+	                 <div class="absolute -right-5 -top-5 opacity-20"><i data-lucide="wallet" class="w-24 h-24"></i></div>
+	                 <p id="label-stat-sisa" class="text-white/75 text-[10px] font-black uppercase mb-1 relative z-10">Total Saldo Bersih</p>
+	                 <h3 id="stat-net-balance" class="text-2xl md:text-3xl font-black relative z-10 mt-1">Rp 0</h3>
+	                 <p class="text-[11px] mt-2 text-white/90 relative z-10 flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> Ketuk untuk rincian detail</p>
+	               </div>
+	               
+	               <div class="bg-white p-5 rounded-[1.6rem] shadow-sm border border-slate-100 relative overflow-hidden">
+	                 <div class="absolute top-0 right-0 w-20 h-20 bg-indigo-100/60 rounded-full blur-2xl"></div>
+	                 <div class="flex items-start justify-between">
+	                   <p class="text-slate-400 text-[10px] font-black uppercase mb-1">Proyek Aktif</p>
+	                   <span class="w-8 h-8 rounded-xl bg-indigo-50 flex items-center justify-center"><i data-lucide="activity" class="w-4 h-4 text-indigo-600"></i></span>
+	                 </div>
+	                 <h3 id="stat-pending" class="text-3xl font-black text-indigo-600 mt-1">0</h3>
+	                 <p class="text-[11px] text-slate-400 mt-2">Order antrean, proses, dan revisi</p>
+	               </div>
+	             </div>
 
              <div class="bg-white rounded-[2.5rem] border shadow-sm overflow-hidden">
                <div class="px-10 py-8 border-b flex justify-between items-center"><h4 class="font-black text-xl">Order Terkini</h4><button onclick="refreshData()" class="p-2 text-indigo-500 bg-indigo-50 rounded-xl"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button></div>
@@ -1642,6 +1685,10 @@ window.updateAuthHeader = function() {
     window.processLogout = function() {
       CURRENT_USER = null;
       if (notificationPolling) clearInterval(notificationPolling);
+      const adminMobile = document.getElementById('admin-only-nav-mobile');
+      const bendaharaMobile = document.getElementById('bendahara-only-nav-mobile');
+      if (adminMobile) adminMobile.classList.add('hidden');
+      if (bendaharaMobile) bendaharaMobile.classList.add('hidden');
       switchView('landing');
       updateAuthHeader();   
     }
@@ -3732,6 +3779,40 @@ window.clearWALog = async function() {
   if (!ok) return;
   showLoading(true, "Menghapus riwayat WA Log...");
   try {
+    const candidates = ['clearWALogData', 'clearWALog', 'deleteWALogData', 'truncateWALog'];
+    let called = null;
+
+    if (typeof google !== 'undefined' && google.script && google.script.run) {
+      const runner = google.script.run;
+      called = candidates.find(name => typeof runner[name] === 'function') || null;
+    }
+
+    const targetFn = called || candidates[0];
+    const res = await serverCall(targetFn);
+    if (res && res.success === false) {
+      customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
+      return;
+    }
+    customAlert("✅ Berhasil", "Riwayat WA Log berhasil dihapus.", "success");
+    renderWALog();
+  } catch (e) {
+    console.error("Clear WA Log error:", e);
+    const msg = String(e && e.message ? e.message : e);
+    if (msg.includes('tidak tersedia di Apps Script')) {
+      customAlert("❌ Error", "Fungsi hapus WA Log belum ada di backend Apps Script. Tambahkan fungsi clearWALogData/clearWALog di server.", "error");
+    } else {
+      customAlert("❌ Error", "Gagal menghapus riwayat WA Log.", "error");
+    }
+  } finally {
+    showLoading(false);
+  }
+};
+
+window.clearWALog = async function() {
+  const ok = confirm("Hapus seluruh riwayat WA Log? Tindakan ini tidak bisa dibatalkan.");
+  if (!ok) return;
+  showLoading(true, "Menghapus riwayat WA Log...");
+  try {
     const res = await serverCall('clearWALogData');
     if (res && res.success === false) {
       customAlert("❌ Gagal", res.message || "Riwayat WA tidak berhasil dihapus.", "error");
@@ -5120,6 +5201,10 @@ window.handleLogin = async function(e) {
 
       document.getElementById('admin-only-nav').classList.toggle('hidden', !isAdmin);
       document.getElementById('bendahara-only-nav').classList.toggle('hidden', !isBendahara);
+      const adminMobile = document.getElementById('admin-only-nav-mobile');
+      const bendaharaMobile = document.getElementById('bendahara-only-nav-mobile');
+      if (adminMobile) adminMobile.classList.toggle('hidden', !isAdmin);
+      if (bendaharaMobile) bendaharaMobile.classList.toggle('hidden', !isBendahara);
 
       document.getElementById('user-display-name').innerText = CURRENT_USER['Nama Lengkap Admin'] || CURRENT_USER.Username;
       document.getElementById('user-display-role').innerText = CURRENT_USER.Role;
