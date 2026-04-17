@@ -2312,7 +2312,7 @@ window.handlePublicOrder = async function(e) {
  <!-- LAYANAN - DROPDOWN MODERN & KEKINIAN -->
 <div class="flex-1">
   <label class="block text-sm font-bold mb-2">Layanan</label>
-  <select id="admin-order-svc" onchange="updateAdminPrice()" 
+  <select id="admin-order-svc" onchange="updateAdminPrice('service')" 
           class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#7c3aed] outline-none text-base font-medium">
     <option value="">Pilih layanan...</option>
     ${DASHBOARD_CACHE.allServices.map(s => {
@@ -2463,7 +2463,7 @@ window.handlePublicOrder = async function(e) {
   // ==================== FIX UTAMA: LOAD SATUAN & AUTO FILL ====================
   setTimeout(() => {
     loadUniqueSatuan();           // ← Ini yang sebelumnya hilang
-    if (typeof updateAdminPrice === 'function') updateAdminPrice();
+    if (typeof updateAdminPrice === 'function') updateAdminPrice('init');
     toggleDPSection();
   }, 150);
 };
@@ -2754,42 +2754,36 @@ window.handlePublicOrder = async function(e) {
       else { const n = Number(nominalInput.value) || 0; percentInput.value = net > 0 ? Math.round((n / net) * 100 * 100) / 100 : 0; }
       info.innerHTML = `Net setelah diskon: <b>${formatIDR(net)}</b>`;
     }
-window.updateAdminPrice = function() {
+window.updateAdminPrice = function(source = 'input') {
   const select = document.getElementById('admin-order-svc');
   if (!select || !DASHBOARD_CACHE?.allServices) return;
 
   const layananTerpilih = select.value.trim();
-  if (!layananTerpilih) return;
-
-  // Cari data layanan lengkap dari cache
-  const svc = DASHBOARD_CACHE.allServices.find(s => 
-    String(s['Detail Layanan'] || s['ID LAYANAN']).trim() === layananTerpilih
-  );
-
-  if (!svc) return;
-
-  // === UPDATE SEMUA FIELD SECARA PAKSA ===
-  
-  // Harga Jual ke Pelanggan (Rp)
   const hargaInput = document.getElementById('admin-order-harga');
-  if (hargaInput) hargaInput.value = Number(svc['Harga Publish']) || 0;
-
-  // Fee Admin (%)
   const feeAdminInput = document.getElementById('admin-order-feeadmin');
-  if (feeAdminInput) feeAdminInput.value = Number(svc['fee Admin(%)']) || 15;
-
-  // Fee Perusahaan (%)
   const feePerusahaanInput = document.getElementById('admin-order-feeperusahaan');
-  if (feePerusahaanInput) feePerusahaanInput.value = Number(svc['fee perusahaan(%)']) || 5;
-
-  // Satuan (Kolom H)
   const satuanInput = document.getElementById('admin-order-satuan');
-  if (satuanInput) satuanInput.value = svc.Satuan || "Unit";
+  const shouldAutoFill = source === 'service' || source === 'init';
+
+  // Auto-fill hanya saat pilih layanan / inisialisasi form.
+  // Saat user edit harga/fee manual, nilainya tidak akan ditimpa lagi.
+  if (layananTerpilih && shouldAutoFill) {
+    const svc = DASHBOARD_CACHE.allServices.find(s =>
+      String(s['Detail Layanan'] || s['ID LAYANAN']).trim() === layananTerpilih
+    );
+
+    if (svc) {
+      if (hargaInput) hargaInput.value = Number(svc['Harga Publish']) || 0;
+      if (feeAdminInput) feeAdminInput.value = Number(svc['fee Admin(%)']) || 15;
+      if (feePerusahaanInput) feePerusahaanInput.value = Number(svc['fee perusahaan(%)']) || 5;
+      if (satuanInput) satuanInput.value = svc.Satuan || "Unit";
+    }
+  }
 
   // Hitung ulang Total Harga
   const qtyInput = document.getElementById('admin-order-qty');
   const qty = parseFloat(qtyInput ? qtyInput.value : 1) || 1;
-  const totalHarga = (Number(hargaInput.value) || 0) * qty;
+  const totalHarga = (Number(hargaInput ? hargaInput.value : 0) || 0) * qty;
 
   const totalInput = document.getElementById('admin-order-total');
   if (totalInput) totalInput.value = Math.round(totalHarga);
@@ -4675,11 +4669,6 @@ window.handleLogin = async function(e) {
   }
 };
 
-function toggleFooter() {
-  const footer = document.getElementById('main-footer');
-  if (footer) footer.style.display = document.getElementById('view-dashboard').classList.contains('hidden') ? 'block' : 'none';
-}
-
 window.showConsultModal = function(serviceName = '') {
   const text = encodeURIComponent(`Halo, saya ingin konsultasi tentang ${serviceName}`);
   window.open(`https://wa.me/6285811699699?text=${text}`, '_blank');
@@ -4845,42 +4834,6 @@ window.syncDPManual = function() {
   }
 };
 
-// ==================== AUTO-FILL LENGKAP FORM PESANAN (Harga + Fee + Satuan) ====================
-function setupAutoFillLayananAdmin() {
-  const select = document.getElementById('admin-order-svc');
-  if (!select) return;
-
-  select.addEventListener('change', function() {
-    const layanan = this.value.trim();
-    if (!layanan || !DASHBOARD_CACHE?.allServices) return;
-
-    const svc = DASHBOARD_CACHE.allServices.find(s => 
-      String(s['Detail Layanan'] || '').trim() === layanan
-    );
-
-    if (svc) {
-      // Harga Jual ke Pelanggan (Rp)
-      const hargaEl = document.getElementById('admin-order-harga');
-      if (hargaEl) hargaEl.value = Number(svc['Harga Publish']) || 0;
-
-      // Fee Admin (%)
-      const feeAdminEl = document.getElementById('admin-order-feeadmin');
-      if (feeAdminEl) feeAdminEl.value = Number(svc['fee Admin(%)']) || 15;
-
-      // Fee Perusahaan (%)
-      const feePerusahaanEl = document.getElementById('admin-order-feeperusahaan');
-      if (feePerusahaanEl) feePerusahaanEl.value = Number(svc['fee perusahaan(%)']) || 5;
-
-      // Satuan (Kolom H)
-      const satuanEl = document.getElementById('admin-order-satuan');
-      if (satuanEl) satuanEl.value = svc.Satuan || "Unit";
-
-      // Hitung ulang total harga otomatis
-      if (typeof hitungTotalHargaAdmin === 'function') hitungTotalHargaAdmin();
-    }
-  });
-}
-
 // Hitung total harga (Qty × Harga)
 window.hitungTotalHargaAdmin = function() {
   const harga = parseFloat(document.getElementById('admin-order-harga')?.value) || 0;
@@ -4888,11 +4841,6 @@ window.hitungTotalHargaAdmin = function() {
   const totalEl = document.getElementById('admin-order-total');
   if (totalEl) totalEl.value = Math.round(harga * qty);
 };
-
-// Jalankan saat dashboard terbuka
-window.addEventListener('load', () => {
-  setTimeout(setupAutoFillLayananAdmin, 1500);
-});
 
 // ==================== DROPDOWN SATUAN - VERSI FINAL & ROBUST ====================
 window.loadUniqueSatuan = function() {
@@ -4949,7 +4897,7 @@ window.showOrderModal = function(serviceName = '') {
   // Jalankan auto-fill harga, fee, dan satuan
   setTimeout(() => {
     if (typeof updateAdminPrice === 'function') {
-      updateAdminPrice();
+      updateAdminPrice('init');
     }
   }, 100);
 };
