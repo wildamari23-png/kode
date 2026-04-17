@@ -89,6 +89,10 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 
     .catalog-card { transition: transform 0.4s ease, box-shadow 0.4s ease; border: 2px solid transparent; }
     .catalog-card:hover { transform: translateY(-8px); box-shadow: 0 20px 40px -10px rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.3); }
+    .catalog-shell { background: linear-gradient(180deg, #ffffff 0%, #f8f5ff 100%); border: 1px solid rgba(124,58,237,0.12); border-radius: 32px; padding: 20px; }
+    .catalog-search-modern { box-shadow: 0 10px 30px -15px rgba(124,58,237,0.35); }
+    .catalog-tabs-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+    .catalog-tabs-scroll::-webkit-scrollbar { display: none; }
 
     #customer-suggestions { max-height: 200px; overflow-y: auto; background: white; border: 1px solid #e2e8f0; border-radius: 12px; position: absolute; z-index: 10; width: 100%; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     .suggestion-item { padding: 12px 16px; cursor: pointer; transition: background 0.2s; }
@@ -180,6 +184,10 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
   }
   .no-result button:hover {
     color: #ef4444;
+  }
+
+  @media (max-width: 768px) {
+    .catalog-shell { border-radius: 24px; padding: 14px; }
   }
 </style>
 
@@ -532,15 +540,17 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 
 
   <!-- KATALOG -->
-  <div id="catalog-section" class="max-w-7xl mx-auto px-6 md:px-8 py-24 scroll-mt-24">
-    <div class="flex justify-between items-end mb-12">
-      <h2 class="text-4xl font-black text-slate-900">Katalog Layanan Premium</h2>
-      <div class="relative w-96">
-        <input type="text" id="catalog-search" placeholder="Cari layanan..." onkeyup="renderCatalog()" class="w-full pl-12 pr-6 py-5 rounded-3xl border border-[#c026d3]/30 focus:border-[#c026d3] outline-none text-lg">
+  <div id="catalog-section" class="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-16 md:py-24 scroll-mt-24">
+    <div class="catalog-shell">
+    <div class="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-5 mb-8 md:mb-12">
+      <h2 class="text-2xl sm:text-3xl md:text-4xl font-black text-slate-900 leading-tight">Katalog Layanan Premium</h2>
+      <div class="relative w-full lg:w-96">
+        <input type="text" id="catalog-search" placeholder="Cari layanan..." onkeyup="renderCatalog()" class="catalog-search-modern w-full pl-12 pr-6 py-4 md:py-5 rounded-2xl md:rounded-3xl border border-[#c026d3]/30 focus:border-[#c026d3] outline-none text-base md:text-lg">
       </div>
     </div>
-    <div id="category-tabs" class="flex flex-wrap gap-3 mb-10"></div>
-    <div id="catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"></div>
+    <div id="category-tabs" class="catalog-tabs-scroll flex gap-3 mb-8 md:mb-10 overflow-x-auto pb-1"></div>
+    <div id="catalog-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 md:gap-8"></div>
+    </div>
   </div>
 </div>
     <!-- ==================== VIEW: LOGIN ==================== -->
@@ -1182,26 +1192,26 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
       </div>
     </div>
 <!-- MODAL PEMESANAN (RESPONSIF + CLOSE) -->
-<div id="modal-order" onclick="if(event.target===this)hideOrderModal()" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4">
-  <div onclick="event.stopImmediatePropagation()" class="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-8 relative">
-    <button onclick="hideOrderModal()" class="absolute top-6 right-6 text-slate-400 hover:text-red-500 transition-colors">
-      <i data-lucide="x" class="w-8 h-8"></i>
+<div id="modal-order" onclick="if(event.target===this)hideOrderModal()" class="hidden fixed inset-0 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center z-[9999] p-3 sm:p-4">
+  <div onclick="event.stopImmediatePropagation()" class="bg-white rounded-[1.75rem] sm:rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl p-5 sm:p-8 relative border border-white/70">
+    <button onclick="hideOrderModal()" class="absolute top-4 right-4 sm:top-6 sm:right-6 text-slate-400 hover:text-red-500 transition-colors">
+      <i data-lucide="x" class="w-6 h-6 sm:w-8 sm:h-8"></i>
     </button>
-    <h3 class="text-3xl font-black mb-8 text-[#7c3aed]">Formulir Pemesanan</h3>
+    <h3 class="text-2xl sm:text-3xl font-black mb-6 sm:mb-8 text-[#7c3aed]">Formulir Pemesanan</h3>
     <form id="form-public-order" onsubmit="handlePublicOrder(event)" class="space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div><label class="block text-sm font-semibold mb-2">Nama Lengkap</label><input type="text" name="nama" id="nama" required class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></div>
-        <div><label class="block text-sm font-semibold mb-2">No. WhatsApp</label><input type="tel" name="hp" id="hp" required class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></div>
+        <div><label class="block text-sm font-semibold mb-2">Nama Lengkap</label><input type="text" name="nama" id="nama" required class="w-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></div>
+        <div><label class="block text-sm font-semibold mb-2">No. WhatsApp</label><input type="tel" name="hp" id="hp" required class="w-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></div>
       </div>
-      <div><label class="block text-sm font-semibold mb-2">Alamat Email</label><input type="email" name="email" id="email" required class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></div>
+      <div><label class="block text-sm font-semibold mb-2">Alamat Email</label><input type="email" name="email" id="email" required class="w-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="md:col-span-2"><label class="block text-sm font-semibold mb-2">Pilih Layanan</label><select name="layanan" id="select-layanan-public" required class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></select></div>
-        <div><label class="block text-sm font-semibold mb-2">Kuantitas</label><input type="number" name="qty" id="input-qty" value="1" min="1" class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none text-center font-bold"></div>
+        <div class="md:col-span-2"><label class="block text-sm font-semibold mb-2">Pilih Layanan</label><select name="layanan" id="select-layanan-public" required class="w-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></select></div>
+        <div><label class="block text-sm font-semibold mb-2">Kuantitas</label><input type="number" name="qty" id="input-qty" value="1" min="1" class="w-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none text-center font-bold"></div>
       </div>
-      <div><label class="block text-sm font-semibold mb-2">Rincian / Topik / Judul Tugas</label><textarea name="rincian" id="rincian" rows="5" placeholder="Tuliskan sedetail mungkin..." required class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></textarea></div>
-      <div><label class="block text-sm font-semibold mb-2">Deadline Proyek</label><input type="date" name="deadline" id="public-deadline" class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></div>
-      <div><label class="block text-sm font-semibold mb-2">File Pendukung (Opsional)</label><input type="file" name="files" multiple accept=".pdf,.doc,.docx,.xls,.xlsx" class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none cursor-pointer"></div>
-      <button type="submit" class="w-full py-6 gradient-primary text-white rounded-3xl font-bold text-xl">Kirim Permintaan Sekarang</button>
+      <div><label class="block text-sm font-semibold mb-2">Rincian / Topik / Judul Tugas</label><textarea name="rincian" id="rincian" rows="5" placeholder="Tuliskan sedetail mungkin..." required class="w-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></textarea></div>
+      <div><label class="block text-sm font-semibold mb-2">Deadline Proyek</label><input type="date" name="deadline" id="public-deadline" class="w-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none"></div>
+      <div><label class="block text-sm font-semibold mb-2">File Pendukung (Opsional)</label><input type="file" name="files" multiple accept=".pdf,.doc,.docx,.xls,.xlsx" class="w-full p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200 focus:border-[#c026d3] outline-none cursor-pointer"></div>
+      <button type="submit" class="w-full py-4 sm:py-6 gradient-primary text-white rounded-2xl sm:rounded-3xl font-bold text-base sm:text-xl shadow-lg shadow-purple-300/40">Kirim Permintaan Sekarang</button>
     </form>
   </div>
 </div>
@@ -1276,11 +1286,12 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
     let passwordVisible = false;
     const WA_NUMBER = '085811699699'; 
 
-    let currentExpensePage = 1;
-    let currentExpenseFilter = 'all';
-    const EXPENSES_PER_PAGE = 10;
+let currentExpensePage = 1;
+let currentExpenseFilter = 'all';
+const EXPENSES_PER_PAGE = 10;
 let currentOrdersPage = 1;
 const ORDERS_PER_PAGE = 10;
+let CURRENT_CATALOG_CATEGORY = 'Semua';
 // ==================== HELPER AMAN UNTUK KOLOM SHEET ====================
 window.safeGet = function(obj, key, defaultVal = '') {
   if (!obj) return defaultVal;
@@ -1932,20 +1943,25 @@ window.renderPengeluaranTable = function() {
     window.renderCategoryTabs = function() {
       const tabs = document.getElementById('category-tabs');
       if(!tabs) return;
-      tabs.innerHTML = `<button onclick="filterCatalog('all')" class="tab-category px-6 py-2 rounded-full font-bold text-sm bg-white border shadow-sm hover:bg-indigo-50">Semua</button>` + ALL_CATEGORIES.map(cat => `<button onclick="filterCatalog('${cat}')" class="tab-category px-6 py-2 rounded-full font-bold text-sm bg-white border shadow-sm hover:bg-indigo-50">${cat}</button>`).join('');
-      tabs.querySelector('.tab-category').classList.add('active');
+      tabs.innerHTML = `<button onclick="filterCatalog('Semua')" class="tab-category px-5 py-2.5 rounded-full font-bold text-sm bg-white border shadow-sm hover:bg-indigo-50 whitespace-nowrap">Semua</button>` + ALL_CATEGORIES.map(cat => `<button onclick="filterCatalog('${cat}')" class="tab-category px-5 py-2.5 rounded-full font-bold text-sm bg-white border shadow-sm hover:bg-indigo-50 whitespace-nowrap">${cat}</button>`).join('');
+      tabs.querySelector('.tab-category')?.classList.add('active');
     }
 
     window.filterCatalog = function(cat) {
+      CURRENT_CATALOG_CATEGORY = cat || 'Semua';
       document.querySelectorAll('.tab-category').forEach(t => t.classList.remove('active'));
       const activeTab = Array.from(document.querySelectorAll('.tab-category')).find(t => t.getAttribute('onclick').includes(`'${cat}'`));
       if (activeTab) activeTab.classList.add('active');
-      renderCatalog(cat);
+      const term = (document.getElementById('catalog-search')?.value || '').trim();
+      renderCatalog(CURRENT_CATALOG_CATEGORY, term);
     }
 
-  window.renderCatalog = async function(category = 'Semua', searchTerm = '') {
+  window.renderCatalog = async function(category = CURRENT_CATALOG_CATEGORY, searchTerm = null) {
   const container = document.getElementById('catalog-grid');
   if (!container) return;
+  const normalizedCategory = !category || category === 'all' ? 'Semua' : category;
+  CURRENT_CATALOG_CATEGORY = normalizedCategory;
+  const activeSearch = searchTerm !== null ? searchTerm : (document.getElementById('catalog-search')?.value || '').trim();
 
   container.innerHTML = `
     <div class="col-span-full text-center py-12">
@@ -1957,8 +1973,8 @@ window.renderPengeluaranTable = function() {
     let services = await serverCall('getPublicServices');
 
     // Filter KATEGORI
-    if (category !== 'Semua') {
-      const catLower = category.toLowerCase();
+    if (normalizedCategory !== 'Semua') {
+      const catLower = normalizedCategory.toLowerCase();
       services = services.filter(s => {
         const serviceCat = String(s.Kategori || s.Jenis || s['Target Profesi'] || '').toLowerCase();
         return serviceCat.includes(catLower);
@@ -1966,8 +1982,8 @@ window.renderPengeluaranTable = function() {
     }
 
     // Filter pencarian teks
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
+    if (activeSearch) {
+      const term = activeSearch.toLowerCase();
       services = services.filter(s => 
         String(s['Detail Layanan'] || '').toLowerCase().includes(term) ||
         String(s.Deskripsi || '').toLowerCase().includes(term)
@@ -1980,23 +1996,23 @@ window.renderPengeluaranTable = function() {
         const deskripsi = String(service.Deskripsi || 'Layanan akademik premium').trim();
 
         return `
-          <div class="tilt-card group bg-white/70 backdrop-blur-xl border border-white/50 rounded-3xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-500" data-tilt data-tilt-glare data-tilt-max-glare="0.8" data-tilt-scale="1.05">
+          <div class="tilt-card group bg-white/75 backdrop-blur-xl border border-white/60 rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500" data-tilt data-tilt-glare data-tilt-max-glare="0.5" data-tilt-scale="1.03">
             <div class="h-2 bg-gradient-to-r from-[#7c3aed] to-[#c026d3]"></div>
             <div class="p-6 flex flex-col h-full">
               <div class="w-14 h-14 flex items-center justify-center bg-gradient-to-br from-[#7c3aed]/10 to-[#c026d3]/10 rounded-2xl mb-6 group-hover:scale-110 transition-transform">
                 <i data-lucide="${getServiceIcon(service)}" class="w-8 h-8 text-[#7c3aed]"></i>
               </div>
-              <h3 class="text-xl font-semibold text-slate-800 mb-2">${nama}</h3>
-              <p class="text-slate-600 text-sm flex-1 leading-relaxed">${deskripsi}</p>
+              <h3 class="text-lg md:text-xl font-semibold text-slate-800 mb-2 line-clamp-2">${nama}</h3>
+              <p class="text-slate-600 text-sm flex-1 leading-relaxed line-clamp-3">${deskripsi}</p>
               
               <div class="flex gap-3 mt-auto">
                 <button onclick="showConsultModal('${nama.replace(/'/g, "\\'")}')" 
-                        class="flex-1 px-5 py-3.5 text-sm font-medium border border-[#7c3aed]/30 hover:border-[#7c3aed] text-[#7c3aed] rounded-2xl flex items-center justify-center gap-2 hover:bg-[#7c3aed]/5 transition-all">
+                        class="flex-1 px-4 py-3 text-sm font-medium border border-[#7c3aed]/30 hover:border-[#7c3aed] text-[#7c3aed] rounded-2xl flex items-center justify-center gap-2 hover:bg-[#7c3aed]/5 transition-all">
                   <i data-lucide="message-circle" class="w-4 h-4"></i>
                   Konsultasi
                 </button>
                 <button onclick="showOrderModal('${nama.replace(/'/g, "\\'")}')" 
-                        class="flex-1 px-5 py-3.5 text-sm font-semibold bg-gradient-to-r from-[#7c3aed] to-[#c026d3] text-white rounded-2xl flex items-center justify-center gap-2 hover:shadow-lg hover:scale-105 transition-all">
+                        class="flex-1 px-4 py-3 text-sm font-semibold bg-gradient-to-r from-[#7c3aed] to-[#c026d3] text-white rounded-2xl flex items-center justify-center gap-2 hover:shadow-lg hover:scale-[1.02] transition-all">
                   <i data-lucide="shopping-cart" class="w-4 h-4"></i>
                   Pesan Sekarang
                 </button>
@@ -2006,7 +2022,7 @@ window.renderPengeluaranTable = function() {
       }).join('');
     } else {
       container.innerHTML = `<p class="col-span-full text-center py-12 text-slate-400">
-        ${category === 'Semua' ? 'Belum ada layanan yang tersedia saat ini' : `Belum ada layanan untuk kategori <strong>${category}</strong>`}
+        ${normalizedCategory === 'Semua' ? 'Belum ada layanan yang tersedia saat ini' : `Belum ada layanan untuk kategori <strong>${normalizedCategory}</strong>`}
       </p>`;
     }
   } catch (e) {
@@ -2312,7 +2328,7 @@ window.handlePublicOrder = async function(e) {
  <!-- LAYANAN - DROPDOWN MODERN & KEKINIAN -->
 <div class="flex-1">
   <label class="block text-sm font-bold mb-2">Layanan</label>
-  <select id="admin-order-svc" onchange="updateAdminPrice()" 
+  <select id="admin-order-svc" onchange="updateAdminPrice('service')" 
           class="w-full p-5 rounded-3xl border border-slate-200 focus:border-[#7c3aed] outline-none text-base font-medium">
     <option value="">Pilih layanan...</option>
     ${DASHBOARD_CACHE.allServices.map(s => {
@@ -2463,7 +2479,7 @@ window.handlePublicOrder = async function(e) {
   // ==================== FIX UTAMA: LOAD SATUAN & AUTO FILL ====================
   setTimeout(() => {
     loadUniqueSatuan();           // ← Ini yang sebelumnya hilang
-    if (typeof updateAdminPrice === 'function') updateAdminPrice();
+    if (typeof updateAdminPrice === 'function') updateAdminPrice('init');
     toggleDPSection();
   }, 150);
 };
@@ -2754,42 +2770,36 @@ window.handlePublicOrder = async function(e) {
       else { const n = Number(nominalInput.value) || 0; percentInput.value = net > 0 ? Math.round((n / net) * 100 * 100) / 100 : 0; }
       info.innerHTML = `Net setelah diskon: <b>${formatIDR(net)}</b>`;
     }
-window.updateAdminPrice = function() {
+window.updateAdminPrice = function(source = 'input') {
   const select = document.getElementById('admin-order-svc');
   if (!select || !DASHBOARD_CACHE?.allServices) return;
 
   const layananTerpilih = select.value.trim();
-  if (!layananTerpilih) return;
-
-  // Cari data layanan lengkap dari cache
-  const svc = DASHBOARD_CACHE.allServices.find(s => 
-    String(s['Detail Layanan'] || s['ID LAYANAN']).trim() === layananTerpilih
-  );
-
-  if (!svc) return;
-
-  // === UPDATE SEMUA FIELD SECARA PAKSA ===
-  
-  // Harga Jual ke Pelanggan (Rp)
   const hargaInput = document.getElementById('admin-order-harga');
-  if (hargaInput) hargaInput.value = Number(svc['Harga Publish']) || 0;
-
-  // Fee Admin (%)
   const feeAdminInput = document.getElementById('admin-order-feeadmin');
-  if (feeAdminInput) feeAdminInput.value = Number(svc['fee Admin(%)']) || 15;
-
-  // Fee Perusahaan (%)
   const feePerusahaanInput = document.getElementById('admin-order-feeperusahaan');
-  if (feePerusahaanInput) feePerusahaanInput.value = Number(svc['fee perusahaan(%)']) || 5;
-
-  // Satuan (Kolom H)
   const satuanInput = document.getElementById('admin-order-satuan');
-  if (satuanInput) satuanInput.value = svc.Satuan || "Unit";
+  const shouldAutoFill = source === 'service' || source === 'init';
+
+  // Auto-fill hanya saat pilih layanan / inisialisasi form.
+  // Saat user edit harga/fee manual, nilainya tidak akan ditimpa lagi.
+  if (layananTerpilih && shouldAutoFill) {
+    const svc = DASHBOARD_CACHE.allServices.find(s =>
+      String(s['Detail Layanan'] || s['ID LAYANAN']).trim() === layananTerpilih
+    );
+
+    if (svc) {
+      if (hargaInput) hargaInput.value = Number(svc['Harga Publish']) || 0;
+      if (feeAdminInput) feeAdminInput.value = Number(svc['fee Admin(%)']) || 15;
+      if (feePerusahaanInput) feePerusahaanInput.value = Number(svc['fee perusahaan(%)']) || 5;
+      if (satuanInput) satuanInput.value = svc.Satuan || "Unit";
+    }
+  }
 
   // Hitung ulang Total Harga
   const qtyInput = document.getElementById('admin-order-qty');
   const qty = parseFloat(qtyInput ? qtyInput.value : 1) || 1;
-  const totalHarga = (Number(hargaInput.value) || 0) * qty;
+  const totalHarga = (Number(hargaInput ? hargaInput.value : 0) || 0) * qty;
 
   const totalInput = document.getElementById('admin-order-total');
   if (totalInput) totalInput.value = Math.round(totalHarga);
@@ -4522,14 +4532,29 @@ renderPromoSlider();
 
 window.hideOrderModal = () => document.getElementById('modal-order').classList.add('hidden');
 
-window.showOrderModal = function(serviceName = '') {
+window.showOrderModal = async function(serviceName = '') {
   const modal = document.getElementById('modal-order');
-  if (modal) {
-    modal.classList.remove('hidden');
-    // Optional: isi otomatis nama layanan di form
-    const titleEl = modal.querySelector('h2');
-    if (titleEl && serviceName) titleEl.textContent = `Pesan ${serviceName}`;
+  if (!modal) return;
+
+  modal.classList.remove('hidden');
+
+  // Pastikan opsi layanan publik sudah terisi dulu, lalu prefill layanan dari katalog.
+  if (typeof populatePublicServicesSelect === 'function') await populatePublicServicesSelect();
+  const serviceSelect = document.getElementById('select-layanan-public');
+  if (serviceSelect) {
+    const normalized = String(serviceName || '').trim().toLowerCase();
+    if (normalized) {
+      const matched = Array.from(serviceSelect.options).find(o => String(o.value || '').trim().toLowerCase() === normalized);
+      if (matched) {
+        serviceSelect.value = matched.value;
+      }
+    } else {
+      serviceSelect.value = '';
+    }
   }
+
+  const titleEl = modal.querySelector('h3');
+  if (titleEl) titleEl.textContent = serviceName ? `Formulir Pemesanan • ${serviceName}` : 'Formulir Pemesanan';
 };
 
 
@@ -4674,11 +4699,6 @@ window.handleLogin = async function(e) {
     showLoading(false);
   }
 };
-
-function toggleFooter() {
-  const footer = document.getElementById('main-footer');
-  if (footer) footer.style.display = document.getElementById('view-dashboard').classList.contains('hidden') ? 'block' : 'none';
-}
 
 window.showConsultModal = function(serviceName = '') {
   const text = encodeURIComponent(`Halo, saya ingin konsultasi tentang ${serviceName}`);
@@ -4845,42 +4865,6 @@ window.syncDPManual = function() {
   }
 };
 
-// ==================== AUTO-FILL LENGKAP FORM PESANAN (Harga + Fee + Satuan) ====================
-function setupAutoFillLayananAdmin() {
-  const select = document.getElementById('admin-order-svc');
-  if (!select) return;
-
-  select.addEventListener('change', function() {
-    const layanan = this.value.trim();
-    if (!layanan || !DASHBOARD_CACHE?.allServices) return;
-
-    const svc = DASHBOARD_CACHE.allServices.find(s => 
-      String(s['Detail Layanan'] || '').trim() === layanan
-    );
-
-    if (svc) {
-      // Harga Jual ke Pelanggan (Rp)
-      const hargaEl = document.getElementById('admin-order-harga');
-      if (hargaEl) hargaEl.value = Number(svc['Harga Publish']) || 0;
-
-      // Fee Admin (%)
-      const feeAdminEl = document.getElementById('admin-order-feeadmin');
-      if (feeAdminEl) feeAdminEl.value = Number(svc['fee Admin(%)']) || 15;
-
-      // Fee Perusahaan (%)
-      const feePerusahaanEl = document.getElementById('admin-order-feeperusahaan');
-      if (feePerusahaanEl) feePerusahaanEl.value = Number(svc['fee perusahaan(%)']) || 5;
-
-      // Satuan (Kolom H)
-      const satuanEl = document.getElementById('admin-order-satuan');
-      if (satuanEl) satuanEl.value = svc.Satuan || "Unit";
-
-      // Hitung ulang total harga otomatis
-      if (typeof hitungTotalHargaAdmin === 'function') hitungTotalHargaAdmin();
-    }
-  });
-}
-
 // Hitung total harga (Qty × Harga)
 window.hitungTotalHargaAdmin = function() {
   const harga = parseFloat(document.getElementById('admin-order-harga')?.value) || 0;
@@ -4888,11 +4872,6 @@ window.hitungTotalHargaAdmin = function() {
   const totalEl = document.getElementById('admin-order-total');
   if (totalEl) totalEl.value = Math.round(harga * qty);
 };
-
-// Jalankan saat dashboard terbuka
-window.addEventListener('load', () => {
-  setTimeout(setupAutoFillLayananAdmin, 1500);
-});
 
 // ==================== DROPDOWN SATUAN - VERSI FINAL & ROBUST ====================
 window.loadUniqueSatuan = function() {
@@ -4926,34 +4905,6 @@ window.loadUniqueSatuan = function() {
 
   select.innerHTML = html;
 };
-
-// ==================== SHOW MODAL ADMIN - VERSI BERSIH (HANYA SATU FUNGSI) ====================
-window.showOrderModal = function(serviceName = '') {
-  const modal = document.getElementById('modal-order');
-  if (!modal) {
-    console.error("❌ Modal #modal-order tidak ditemukan!");
-    return;
-  }
-
-  modal.classList.remove('hidden');
-
-  // Load dropdown satuan setiap kali modal dibuka
-  loadUniqueSatuan();
-
-  // Isi layanan jika dikirim dari katalog
-  if (serviceName) {
-    const svcSelect = document.getElementById('admin-order-svc');
-    if (svcSelect) svcSelect.value = serviceName;
-  }
-
-  // Jalankan auto-fill harga, fee, dan satuan
-  setTimeout(() => {
-    if (typeof updateAdminPrice === 'function') {
-      updateAdminPrice();
-    }
-  }, 100);
-};
-
 
 let currentOrderIdForAction = null;
 
