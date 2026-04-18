@@ -2699,9 +2699,13 @@ window.handlePublicOrder = async function(e) {
       </div>
 
       <!-- Rincian -->
-      <div>
-        <label class="block text-sm font-bold mb-2">Rincian / Topik</label>
-	        <textarea id="admin-order-rincian" rows="3" required class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]">${o ? o['RINCIAN PESANAN'] || '' : ''}</textarea>
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <label class="block text-sm font-bold">Rincian / Topik</label>
+          <span class="text-[11px] text-slate-500">Template cerdas berdasarkan layanan</span>
+        </div>
+        <div id="admin-rincian-templates" class="flex flex-wrap gap-2"></div>
+	        <textarea id="admin-order-rincian" rows="3" required class="w-full p-5 rounded-3xl border focus:border-[#7c3aed]" placeholder="Pilih template atau tulis rincian manual...">${o ? o['RINCIAN PESANAN'] || '' : ''}</textarea>
       </div>
 
       <!-- Deadline + Worker -->
@@ -2802,6 +2806,7 @@ window.handlePublicOrder = async function(e) {
     loadUniqueSatuan();           // ← Ini yang sebelumnya hilang
     if (typeof updateAdminPrice === 'function') updateAdminPrice('init');
     if (typeof syncAdminServiceSearchFromSelect === 'function') syncAdminServiceSearchFromSelect();
+    if (typeof renderAdminRincianTemplates === 'function') renderAdminRincianTemplates(document.getElementById('admin-order-svc')?.value || '');
     toggleDPSection();
   }, 150);
 };
@@ -3186,6 +3191,7 @@ window.syncAdminServiceSearchFromSelect = function() {
   search.value = select.value || '';
   if (results) results.classList.add('hidden');
   renderAdminServiceInfo();
+  renderAdminRincianTemplates(select.value || '');
 };
 
 window.chooseAdminService = function(serviceName = '') {
@@ -3194,6 +3200,61 @@ window.chooseAdminService = function(serviceName = '') {
   select.value = serviceName;
   syncAdminServiceSearchFromSelect();
   updateAdminPrice('service');
+};
+
+window.getRincianTemplatesForService = function(serviceName = '') {
+  const name = String(serviceName || '').toLowerCase();
+  const byType = [];
+  if (name.includes('skripsi') || name.includes('tesis') || name.includes('disertasi')) {
+    byType.push(
+      'Topik: [isi topik penelitian] | Metode: [kualitatif/kuantitatif] | Target selesai: [tanggal] | Catatan dosen: [isi catatan].',
+      'Butuh bantuan BAB [2/3/4/5], fokus pada [bagian], referensi minimal [x] jurnal 5 tahun terakhir.',
+      'Revisi skripsi: perbaiki [bab], benahi sitasi Mendeley, dan rapikan format sesuai pedoman kampus.'
+    );
+  } else if (name.includes('jurnal') || name.includes('artikel')) {
+    byType.push(
+      'Tema jurnal: [isi tema] | Target indeks: [Sinta/Scopus] | Gaya sitasi: [APA/IEEE] | Deadline submit: [tanggal].',
+      'Parafrase + proofreading artikel [jumlah kata], fokus kurangi similarity dan rapikan grammar akademik.',
+      'Butuh struktur lengkap IMRAD + abstrak bilingual + kata kunci sesuai scope jurnal.'
+    );
+  } else if (name.includes('statistik') || name.includes('spss') || name.includes('olah data')) {
+    byType.push(
+      'Dataset: [jumlah responden] | Uji diminta: [uji] | Output wajib: tabel, interpretasi, dan kesimpulan.',
+      'Validasi instrumen + uji asumsi + regresi/SEM, sertakan narasi hasil siap tempel ke BAB 4.',
+      'Butuh bimbingan meeting 1x untuk review output analisis dan perbaikan model.'
+    );
+  } else if (name.includes('ppt') || name.includes('presentasi')) {
+    byType.push(
+      'Buat PPT [jumlah slide] gaya [formal/modern], dominan warna [warna], include icon + infografik.',
+      'Materi presentasi sidang: ringkas BAB 1-5, tambah script presentasi 7 menit.',
+      'Redesign slide existing agar lebih clean, konsisten font, dan storytelling lebih kuat.'
+    );
+  } else {
+    byType.push(
+      `Layanan: ${serviceName || '[isi layanan]'} | Tujuan: [isi kebutuhan] | Output: [format file] | Deadline: [tanggal].`,
+      'Brief detail: latar belakang, scope pekerjaan, format penulisan, dan contoh referensi jika ada.',
+      'Prioritas pengerjaan: [cepat/normal], revisi maksimal [x] kali, komunikasi via WA.'
+    );
+  }
+  return byType;
+};
+
+window.renderAdminRincianTemplates = function(serviceName = '') {
+  const wrap = document.getElementById('admin-rincian-templates');
+  if (!wrap) return;
+  const templates = getRincianTemplatesForService(serviceName);
+  wrap.innerHTML = templates.map((tpl, i) =>
+    `<button type="button" onclick="applyAdminRincianTemplate(${i})" class="px-3 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-all">Template ${i + 1}</button>`
+  ).join('');
+  window.ADMIN_RINCIAN_TEMPLATES = templates;
+};
+
+window.applyAdminRincianTemplate = function(index = 0) {
+  const area = document.getElementById('admin-order-rincian');
+  const list = window.ADMIN_RINCIAN_TEMPLATES || [];
+  if (!area || !list[index]) return;
+  area.value = list[index];
+  area.focus();
 };
 
 window.filterAdminServiceOptions = function(query = '') {
@@ -5345,7 +5406,8 @@ window.handleSaveOrder = async function(e) {
 
   const nama = document.getElementById('admin-order-nama').value.trim();
   const hp = document.getElementById('admin-order-hp').value.trim();
-  const email = document.getElementById('admin-order-email').value.trim();
+  const emailRaw = document.getElementById('admin-order-email').value;
+  const email = String(emailRaw || '').trim().replace(/\u200B/g, '').toLowerCase();
   const layanan = document.getElementById('admin-order-svc').value.trim();
   const qty = parseFloat(document.getElementById('admin-order-qty').value);
   const harga = parseFloat(document.getElementById('admin-order-harga').value);
@@ -5368,7 +5430,7 @@ window.handleSaveOrder = async function(e) {
     showLoading(false);
     return customAlert("⚠️ Validasi", "Rincian pesanan minimal 8 karakter agar instruksi jelas.", "error");
   }
-  if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     showLoading(false);
     return customAlert("⚠️ Validasi", "Format email tidak valid.", "error");
   }
