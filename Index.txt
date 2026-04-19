@@ -3092,11 +3092,11 @@ window.handlePublicOrder = async function(e) {
 
         const listHtml = files.map(f => {
           const safeName = String(f.name).replace(/'/g, "\\'");
-          const encodedFileUrl = encodeURIComponent(String(f.url || ''));
           const encodedFileName = encodeURIComponent(String(f.name || 'Dokumen'));
           const safeReview = String(f.reviewUrl || f.url || '').replace(/'/g, "\\'");
           const safeDownload = String(f.downloadUrl || '').replace(/'/g, "\\'");
-          const previewBtn = `<button onclick="previewOrderDocProtected(decodeURIComponent('${encodedFileUrl}'), decodeURIComponent('${encodedFileName}'), '${orderId}')" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
+          const reviewOnlyFlag = (docType === 'final' && !canDownload) ? 'true' : 'false';
+          const previewBtn = `<button onclick="openOrderDocReview('${safeReview}', decodeURIComponent('${encodedFileName}'), ${reviewOnlyFlag})" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
           const reviewLinkBtn = `<button onclick="copyText('${safeReview}')" class="px-2 py-1 rounded-lg bg-violet-50 text-violet-700 font-bold">Copy Link Review</button>`;
           const downloadBtn = canDownload
             ? `<a href="${f.downloadUrl}" target="_blank" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Download</a><button onclick="copyText('${safeDownload}')" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Copy Link Download</button>`
@@ -3153,33 +3153,15 @@ window.handlePublicOrder = async function(e) {
       }
     };
 
-    window.previewOrderDocProtected = function(fileUrl, fileName, orderId) {
-      const safeName = String(fileName || 'Dokumen')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-      const viewer = 'https://docs.google.com/gview?embedded=1&url=' + encodeURIComponent(fileUrl);
-      const w = window.open('', '_blank');
-      if (w) {
-        const wmText = 'REVIEW ONLY - ' + orderId + ' - ' + safeName + ' - LENTERA CENDEKIA';
-        w.document.title = 'Preview Dokumen';
-        w.document.body.style.margin = '0';
-        w.document.body.style.background = '#0f172a';
-        w.document.body.style.fontFamily = 'Arial, sans-serif';
-        w.document.body.innerHTML = `
-          <div style="padding:10px 14px;background:#111827;color:#fff;font-size:12px;font-weight:700;">
-            Preview only (watermark aktif) - download dinonaktifkan sampai lunas.
-          </div>
-          <div style="position:fixed;inset:40px 0 0 0;">
-            <iframe src="${viewer}" style="border:0;width:100%;height:100%;"></iframe>
-            <div style="position:absolute;inset:0;pointer-events:none;display:flex;flex-wrap:wrap;align-content:space-around;justify-content:space-around;opacity:.14;color:#ef4444;font-weight:800;font-size:18px;transform:rotate(-20deg);">
-              <span>${wmText}</span><span>${wmText}</span><span>${wmText}</span>
-              <span>${wmText}</span><span>${wmText}</span><span>${wmText}</span>
-            </div>
-          </div>
-        `;
+    window.openOrderDocReview = function(reviewUrl, fileName = 'Dokumen', isReviewOnly = false) {
+      const url = String(reviewUrl || '').trim();
+      if (!url) {
+        customAlert('⚠️ Link kosong', `Link review untuk ${fileName} tidak tersedia.`);
+        return;
+      }
+      window.open(url, '_blank', 'noopener');
+      if (isReviewOnly) {
+        customAlert('Mode Review Aktif', 'Dokumen dibuka langsung dari Google Drive agar tidak blank. Download tetap dikunci sampai status pembayaran lunas.');
       }
     };
 
