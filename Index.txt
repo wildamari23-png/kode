@@ -3092,9 +3092,11 @@ window.handlePublicOrder = async function(e) {
 
         const listHtml = files.map(f => {
           const safeName = String(f.name).replace(/'/g, "\\'");
+          const encodedFileUrl = encodeURIComponent(String(f.url || ''));
+          const encodedFileName = encodeURIComponent(String(f.name || 'Dokumen'));
           const safeReview = String(f.reviewUrl || f.url || '').replace(/'/g, "\\'");
           const safeDownload = String(f.downloadUrl || '').replace(/'/g, "\\'");
-          const previewBtn = `<button onclick="previewOrderDocProtected('${f.url}', '${safeName}', '${orderId}')" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
+          const previewBtn = `<button onclick="previewOrderDocProtected(decodeURIComponent('${encodedFileUrl}'), decodeURIComponent('${encodedFileName}'), '${orderId}')" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
           const reviewLinkBtn = `<button onclick="copyText('${safeReview}')" class="px-2 py-1 rounded-lg bg-violet-50 text-violet-700 font-bold">Copy Link Review</button>`;
           const downloadBtn = canDownload
             ? `<a href="${f.downloadUrl}" target="_blank" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Download</a><button onclick="copyText('${safeDownload}')" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Copy Link Download</button>`
@@ -3152,7 +3154,12 @@ window.handlePublicOrder = async function(e) {
     };
 
     window.previewOrderDocProtected = function(fileUrl, fileName, orderId) {
-      const safeName = String(fileName || 'Dokumen').replace(/</g, '&lt;');
+      const safeName = String(fileName || 'Dokumen')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
       const viewer = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(fileUrl)}`;
       const w = window.open('', '_blank');
       if (w) {
