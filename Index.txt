@@ -1324,10 +1324,11 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
           <div style="flex:1; border:1px solid #e2e8f0; border-radius:12px; padding:15px;">
             <h3 style="font-size:11px; text-transform:uppercase; color:#64748b; margin-top:0; border-bottom:1px solid #e2e8f0; padding-bottom:8px; margin-bottom:10px;">POTONGAN (OUT)</h3>
             <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:#334155; font-size:12px;">Potongan Kasbon/Lainnya</span><strong id="sg-potongan" style="color:#ef4444; font-size:12px;"></strong></div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;"><span style="color:#334155; font-size:12px;">Biaya Admin Bank</span><strong id="sg-admin-fee" style="color:#dc2626; font-size:12px;">- Rp 0</strong></div>
           </div>
         </div>
         <div style="background:#f8fafc; padding:15px 20px; border-radius:12px; display:flex; justify-content:space-between; align-items:center;">
-          <div><p style="margin:0; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Total Take Home Pay</p></div>
+          <div><p style="margin:0; font-size:11px; font-weight:700; color:#64748b; text-transform:uppercase;">Total Transfer Diterima</p></div>
           <h2 id="sg-total" style="margin:0; font-size:22px; font-weight:800; color:#1e293b;"></h2>
         </div>
         <div style="display:flex; justify-content:space-between; margin-top:50px;">
@@ -1985,7 +1986,7 @@ window.renderPengeluaranTable = function() {
     pTable.innerHTML = paginatedData.map(p => `
       <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
         <td class="px-6 py-4">${new Date(p['Tanggal'] || p['TANGGAL']).toLocaleDateString('id-ID')}</td>
-        <td class="px-6 py-4 font-mono text-xs">${p['ID Pengeluaran']}</td>
+        <td class="px-6 py-4 font-mono text-xs"><button onclick="openExpenseDetail('${p['ID Pengeluaran']}')" class="text-indigo-600 hover:underline font-bold">${p['ID Pengeluaran']}</button></td>
         <td class="px-6 py-4">
           <div class="flex flex-col gap-2">
             <span class="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-bold w-fit">${p['Kategori']}</span>
@@ -2032,6 +2033,44 @@ window.renderPengeluaranTable = function() {
       currentExpenseFilter = filter;
       currentExpensePage = 1;
       renderPengeluaranTable();
+    };
+
+    window.openExpenseDetail = function(id) {
+      const p = (DASHBOARD_CACHE.pengeluaran || []).find(x => x['ID Pengeluaran'] === id);
+      if (!p) return;
+      const desc = String(p['Deskripsi'] || '');
+      let gajiInfo = '';
+      if (desc.toLowerCase().includes('pembayaran gaji')) {
+        const match = (DASHBOARD_CACHE.gaji || []).find(g => desc.includes(g['Bulan/Tahun'] || '') && desc.toLowerCase().includes(String(g['Worker Username'] || '').toLowerCase()));
+        if (match) {
+          gajiInfo = `
+            <div class="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-sm">
+              <p class="font-black text-indigo-700 mb-2">Rincian Gaji Terkait</p>
+              <div class="space-y-1">
+                <p>Worker: <strong>${match['Worker Username']}</strong></p>
+                <p>Periode: <strong>${match['Bulan/Tahun']}</strong></p>
+                <p>Gaji Pokok: <strong>${formatIDR(match['Gaji Pokok'])}</strong></p>
+                <p>Bonus: <strong>${formatIDR(match['Bonus'])}</strong></p>
+                <p>Potongan: <strong>${formatIDR(match['Potongan'])}</strong></p>
+                <p>Total Tercatat Pengeluaran: <strong>${formatIDR(match['Total Terima'])}</strong></p>
+              </div>
+            </div>`;
+        }
+      }
+      const body = document.getElementById('modal-content-body');
+      body.innerHTML = `
+        <h3 class="text-2xl font-black mb-4">Detail Pengeluaran</h3>
+        <div class="space-y-3 text-sm">
+          <p><span class="text-slate-500">ID:</span> <strong>${id}</strong></p>
+          <p><span class="text-slate-500">Tanggal:</span> <strong>${new Date(p['Tanggal'] || p['TANGGAL']).toLocaleDateString('id-ID')}</strong></p>
+          <p><span class="text-slate-500">Kategori:</span> <strong>${p['Kategori']}</strong></p>
+          <p><span class="text-slate-500">Jumlah:</span> <strong class="text-red-600">${formatIDR(p['Jumlah'])}</strong></p>
+          <p><span class="text-slate-500">Input By:</span> <strong>${p['Input By'] || '-'}</strong></p>
+          <div class="bg-slate-50 border rounded-xl p-3"><p class="text-slate-500 text-xs mb-1">Deskripsi</p><p class="font-medium">${p['Deskripsi'] || '-'}</p></div>
+          ${gajiInfo}
+        </div>
+      `;
+      document.getElementById('modal-overlay').classList.remove('hidden');
     };
 
    window.deletePengeluaran = async function(id) {
@@ -4193,8 +4232,17 @@ window.showFinancialSummary = function() {
       }
       document.getElementById('gaji-bulanTahun').innerHTML = monthOptions;
       let userOptions = '<option value="">Pilih Pegawai...</option>';
-      DASHBOARD_CACHE.users.forEach(u => { userOptions += `<option value="${u.Username}" data-role="${String(u.Role).toLowerCase()}">${u['Nama Lengkap Admin'] || u.Username} (${u.Role})</option>`; });
+      DASHBOARD_CACHE.users.forEach(u => {
+        const bank = u['Nama Bank'] || u['Bank'] || '';
+        userOptions += `<option value="${u.Username}" data-role="${String(u.Role).toLowerCase()}" data-bank="${String(bank).replace(/"/g,'&quot;')}">${u['Nama Lengkap Admin'] || u.Username} (${u.Role})</option>`;
+      });
       document.getElementById('gaji-worker').innerHTML = userOptions;
+    }
+
+    window.getBankAdminFee = function(bankName = '', nominal = 0) {
+      const bank = String(bankName || '').toLowerCase().trim();
+      if (!nominal || nominal <= 0) return 0;
+      return bank.includes('mandiri') ? 0 : 2500;
     }
 
     // AUTO FILL GAJI DAN INFORMASI SISA
@@ -4235,6 +4283,7 @@ window.showFinancialSummary = function() {
       const bRek = userObj[rekKey] || '-';
       document.getElementById('gw-bank').innerText = bName;
       document.getElementById('gw-rek').innerText = bRek;
+      select.setAttribute('data-selected-bank', bName);
       
       document.getElementById('gw-copy-btn').onclick = () => copyText(bRek);
 
@@ -4242,6 +4291,7 @@ window.showFinancialSummary = function() {
       else { document.getElementById('gaji-jumlah').value = 1500000; }
       
       infoPanel.classList.remove('hidden');
+      if (typeof updateGajiCalculator === 'function') updateGajiCalculator();
     }
 
     window.openGajiModal = function() {
@@ -4281,10 +4331,14 @@ window.showFinancialSummary = function() {
       const bonus = Number(document.getElementById('gaji-bonus')?.value) || 0;
       const potongan = Number(document.getElementById('gaji-potongan')?.value) || 0;
       const total = gajiPokok + bonus - potongan;
+      const workerSelect = document.getElementById('gaji-worker');
+      const bankName = workerSelect?.getAttribute('data-selected-bank') || workerSelect?.selectedOptions?.[0]?.getAttribute('data-bank') || '';
+      const bankAdmin = getBankAdminFee(bankName, total);
+      const totalTransfer = Math.max(0, total - bankAdmin);
       const el = document.getElementById('gaji-calc-preview');
       if (!el) return;
       const warning = total < 0 ? '<p class="text-xs text-red-600 font-bold mt-2">Total minus! Cek bonus/potongan dulu ya.</p>' : '';
-      el.innerHTML = `<p class="font-black text-indigo-700 mb-2">Simulasi Take Home Pay</p><div class="space-y-1"><div class="flex justify-between"><span>Gaji Pokok</span><strong>${formatIDR(gajiPokok)}</strong></div><div class="flex justify-between text-emerald-700"><span>+ Bonus</span><strong>${formatIDR(bonus)}</strong></div><div class="flex justify-between text-rose-700"><span>- Potongan</span><strong>${formatIDR(potongan)}</strong></div><div class="flex justify-between border-t pt-2 font-black text-slate-800"><span>Total Terima</span><strong>${formatIDR(total)}</strong></div></div>${warning}`;
+      el.innerHTML = `<p class="font-black text-indigo-700 mb-2">Simulasi Take Home Pay</p><div class="space-y-1"><div class="flex justify-between"><span>Gaji Pokok</span><strong>${formatIDR(gajiPokok)}</strong></div><div class="flex justify-between text-emerald-700"><span>+ Bonus</span><strong>${formatIDR(bonus)}</strong></div><div class="flex justify-between text-rose-700"><span>- Potongan</span><strong>${formatIDR(potongan)}</strong></div><div class="flex justify-between"><span>- Admin Bank (${bankName || '-'})</span><strong class="text-red-600">${formatIDR(bankAdmin)}</strong></div><div class="flex justify-between border-t pt-2 font-black text-slate-800"><span>Total Pengeluaran (catat)</span><strong>${formatIDR(total)}</strong></div><div class="flex justify-between font-black text-emerald-700"><span>Total Transfer Diterima</span><strong>${formatIDR(totalTransfer)}</strong></div></div>${warning}`;
     }
 
     window.handleSaveGaji = async function(e) {
@@ -4295,47 +4349,122 @@ window.showFinancialSummary = function() {
       const bonus = Number(document.getElementById('gaji-bonus').value) || 0;
       const potongan = Number(document.getElementById('gaji-potongan').value) || 0;
       const totalTerima = gajiPokok + bonus - potongan;
+      const bankName = workerSelect.getAttribute('data-selected-bank') || workerSelect.selectedOptions?.[0]?.getAttribute('data-bank') || '';
+      const bankAdmin = getBankAdminFee(bankName, totalTerima);
       const payloadGaji = { workerUsername: workerSelect.value, bulanTahun: document.getElementById('gaji-bulanTahun').value, jumlahGaji: gajiPokok, bonus: bonus, potongan: potongan, inputBy: CURRENT_USER.Username };
       const payloadPengeluaran = { tanggal: new Date().toISOString().split('T')[0], deskripsi: `Pembayaran Gaji: ${workerName} - ${payloadGaji.bulanTahun}`, jumlah: totalTerima, kategori: 'Gaji Pegawai', inputBy: CURRENT_USER.Username };
       showLoading(true);
-      try { await serverCall('saveGaji', payloadGaji); await serverCall('savePengeluaran', payloadPengeluaran); closeModal(); customAlert("Berhasil", "Data gaji disimpan dan otomatis masuk ke laporan pengeluaran."); refreshData(); } catch (e) { customAlert("Error", "Gagal menyimpan gaji"); } finally { showLoading(false); }
+      try { await serverCall('saveGaji', payloadGaji); await serverCall('savePengeluaran', payloadPengeluaran); closeModal(); customAlert("Berhasil", `Data gaji disimpan. Pengeluaran tercatat ${formatIDR(totalTerima)}; transfer diterima ${formatIDR(Math.max(0,totalTerima-bankAdmin))}.`); refreshData(); } catch (e) { customAlert("Error", "Gagal menyimpan gaji"); } finally { showLoading(false); }
     }
 
     window.downloadSlipGaji = async function(idGaji) {
       const g = DASHBOARD_CACHE.gaji.find(x => x['ID Gaji'] === idGaji);
       if (!g) { customAlert("Error", "Data gaji tidak ditemukan"); return; }
-      
+      window.CURRENT_SLIP_GAJI = g;
+      openSlipExportModal();
+    }
+
+    window.populateSlipGajiFields = function(g) {
       const userObj = DASHBOARD_CACHE.users.find(u => u.Username === g['Worker Username']);
       const role = userObj ? userObj.Role : '-';
       const nama = userObj ? (userObj['Nama Lengkap Admin'] || userObj.Username) : g['Worker Username'];
-
+      const bank = userObj ? (userObj['Nama Bank'] || userObj['Bank'] || '-') : '-';
+      const totalTerima = Number(g['Total Terima']) || 0;
+      const bankAdmin = getBankAdminFee(bank, totalTerima);
+      const totalTransfer = Math.max(0, totalTerima - bankAdmin);
       document.getElementById('sg-periode').innerText = `Periode: ${g['Bulan/Tahun']}`;
       document.getElementById('sg-nama').innerText = nama;
-      document.getElementById('sg-role').innerText = `Jabatan: ${role}`;
+      document.getElementById('sg-role').innerText = `Jabatan: ${role} • Bank Tujuan: ${bank}`;
       document.getElementById('sg-tgl').innerText = new Date().toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'});
-      
       document.getElementById('sg-pokok').innerText = formatIDR(g['Gaji Pokok']);
       document.getElementById('sg-bonus').innerText = `+ ${formatIDR(g['Bonus'])}`;
       document.getElementById('sg-potongan').innerText = `- ${formatIDR(g['Potongan'])}`;
-      document.getElementById('sg-total').innerText = formatIDR(g['Total Terima']);
+      document.getElementById('sg-admin-fee').innerText = `- ${formatIDR(bankAdmin)} ${bankAdmin === 0 ? '(Mandiri bebas admin)' : '(biaya admin transfer)'}`;
+      document.getElementById('sg-total').innerText = formatIDR(totalTransfer);
       document.getElementById('sg-ttd-nama').innerText = nama;
+      return { nama, bankAdmin, totalTransfer };
+    };
 
-      const element = document.getElementById('slip-gaji-capture');
-      // Tampilkan sesaat untuk html2canvas rendering
-      element.parentElement.style.visibility = 'visible';
-      element.parentElement.style.zIndex = '1';
-      showLoading(true);
+    window.generateSlipCanvas = async function() {
+      const g = window.CURRENT_SLIP_GAJI;
+      if (!g) throw new Error('Slip belum dipilih');
+      const mTop = Number(document.getElementById('slip-margin-top')?.value || 24);
+      const mRight = Number(document.getElementById('slip-margin-right')?.value || 24);
+      const mBottom = Number(document.getElementById('slip-margin-bottom')?.value || 24);
+      const mLeft = Number(document.getElementById('slip-margin-left')?.value || 24);
+      populateSlipGajiFields(g);
+      const base = document.getElementById('slip-gaji-capture');
+      const wrap = document.createElement('div');
+      wrap.style.background = '#fff';
+      wrap.style.padding = `${mTop}px ${mRight}px ${mBottom}px ${mLeft}px`;
+      wrap.style.width = (595 + mLeft + mRight) + 'px';
+      const clone = base.cloneNode(true);
+      clone.id = 'slip-gaji-clone-temp';
+      wrap.appendChild(clone);
+      document.body.appendChild(wrap);
+      const canvas = await html2canvas(wrap, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+      wrap.remove();
+      return canvas;
+    };
+
+    window.openSlipExportModal = function() {
+      const g = window.CURRENT_SLIP_GAJI;
+      if (!g) return;
+      const body = document.getElementById('modal-content-body');
+      body.innerHTML = `
+        <h3 class="text-2xl font-black mb-4">Export Slip Gaji</h3>
+        <p class="text-sm text-slate-500 mb-4">Pilih format export (Gambar/PDF), atur margin, lalu preview sebelum download.</p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div><label class="text-xs font-bold">Margin Top</label><input id="slip-margin-top" type="number" value="24" min="0" class="w-full p-2 rounded-xl border"></div>
+          <div><label class="text-xs font-bold">Margin Right</label><input id="slip-margin-right" type="number" value="24" min="0" class="w-full p-2 rounded-xl border"></div>
+          <div><label class="text-xs font-bold">Margin Bottom</label><input id="slip-margin-bottom" type="number" value="24" min="0" class="w-full p-2 rounded-xl border"></div>
+          <div><label class="text-xs font-bold">Margin Left</label><input id="slip-margin-left" type="number" value="24" min="0" class="w-full p-2 rounded-xl border"></div>
+        </div>
+        <div class="flex gap-2 mb-4">
+          <button onclick="previewSlipGajiExport()" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Preview</button>
+          <button onclick="exportSlipGaji('png')" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Download Gambar</button>
+          <button onclick="exportSlipGaji('pdf')" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">Download PDF</button>
+        </div>
+        <div id="slip-preview-box" class="border rounded-2xl bg-slate-50 p-3 text-center text-xs text-slate-500">Belum ada preview.</div>
+      `;
+      document.getElementById('modal-overlay').classList.remove('hidden');
+    };
+
+    window.previewSlipGajiExport = async function() {
+      showLoading(true, 'Membuat preview slip...');
       try {
-        const canvas = await html2canvas(element, { scale: 3, useCORS: true, backgroundColor: "#ffffff" });
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF('p', 'mm', 'a4', true); 
-        const imgData = canvas.toDataURL('image/png', 1.0); 
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'SLOW');
-        pdf.save(`LC-SlipGaji-${nama.replace(/ /g, '_')}-${g['Bulan/Tahun']}.pdf`);
-      } catch (e) { console.error(e); customAlert("Error", "Gagal membuat PDF"); } finally { element.parentElement.style.visibility = 'hidden'; element.parentElement.style.zIndex = '-999'; showLoading(false); }
-    }
+        const canvas = await generateSlipCanvas();
+        const box = document.getElementById('slip-preview-box');
+        box.innerHTML = `<img src="${canvas.toDataURL('image/png')}" class="w-full rounded-xl border">`;
+      } catch (e) {
+        customAlert('Error', 'Gagal membuat preview slip.');
+      } finally { showLoading(false); }
+    };
+
+    window.exportSlipGaji = async function(format = 'pdf') {
+      showLoading(true, `Menyiapkan slip ${format.toUpperCase()}...`);
+      try {
+        const g = window.CURRENT_SLIP_GAJI;
+        const { nama } = populateSlipGajiFields(g);
+        const canvas = await generateSlipCanvas();
+        if (format === 'png') {
+          const link = document.createElement('a');
+          link.href = canvas.toDataURL('image/png');
+          link.download = `LC-SlipGaji-${nama.replace(/ /g, '_')}-${g['Bulan/Tahun']}.png`;
+          link.click();
+        } else {
+          const { jsPDF } = window.jspdf;
+          const pdf = new jsPDF('p', 'mm', 'a4', true);
+          const imgData = canvas.toDataURL('image/png', 1.0);
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'SLOW');
+          pdf.save(`LC-SlipGaji-${nama.replace(/ /g, '_')}-${g['Bulan/Tahun']}.pdf`);
+        }
+      } catch (e) {
+        customAlert('Error', `Gagal export slip ${format.toUpperCase()}.`);
+      } finally { showLoading(false); }
+    };
 // ==================== FIX: INVOICE & LAPORAN ====================
 window.generateInvoice = async function(orderId) {
   const order = DASHBOARD_CACHE.orders.find(o => o['ID PESANAN'] === orderId);
