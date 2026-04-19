@@ -283,6 +283,9 @@ function updateOrder(orderId, updates) {
     let statusCol = -1;
     let workerCol = -1;
     let waktuTerimaCol = -1;   // Kolom U = WAKTU DITERIMA WORKER
+    let paymentCol = -1;
+    let finalFolderCol = -1;
+    let initialFolderCol = -1;
 
     for (let i = 0; i < headers.length; i++) {
       const h = String(headers[i]).trim().toUpperCase();
@@ -290,6 +293,9 @@ function updateOrder(orderId, updates) {
       else if (h === "TAHAPAN PESANAN") statusCol = i;
       else if (h === "WORKER") workerCol = i;
       else if (h === "WAKTU DITERIMA WORKER" || h.includes("WAKTU DITERIMA")) waktuTerimaCol = i;
+      else if (h === "STATUS PEMBAYARAN") paymentCol = i;
+      else if (h === "FOLDER DOKUMEN FINAL") finalFolderCol = i;
+      else if (h === "FOLDER DOKUMEN AWAL") initialFolderCol = i;
     }
 
     if (idCol === -1) return { success: false, message: "Kolom ID PESANAN tidak ditemukan" };
@@ -307,6 +313,9 @@ function updateOrder(orderId, updates) {
     // Update Status
     if (updates.status && statusCol !== -1) {
       sheet.getRange(rowIndex, statusCol + 1).setValue(updates.status);
+    }
+    if (updates.payment && paymentCol !== -1) {
+      sheet.getRange(rowIndex, paymentCol + 1).setValue(updates.payment);
     }
 
     // Update Worker (Kolom P)
@@ -331,11 +340,143 @@ function updateOrder(orderId, updates) {
       }
     }
 
+    if (updates.finalFiles && updates.finalFiles.length > 0) {
+      const folderUrl = finalFolderCol !== -1 ? String(sheet.getRange(rowIndex, finalFolderCol + 1).getValue() || '') : '';
+      const orderFolderUrl = initialFolderCol !== -1 ? String(sheet.getRange(rowIndex, initialFolderCol + 1).getValue() || '') : '';
+      const folder = getOrCreateOrderFolder(orderId, 'final', folderUrl, orderFolderUrl);
+      updates.finalFiles.forEach(f => {
+        const blob = Utilities.newBlob(Utilities.base64Decode(f.data), f.mimeType || 'application/octet-stream', f.filename || ('file-' + Date.now()));
+        folder.createFile(blob);
+      });
+      if (finalFolderCol !== -1 && !sheet.getRange(rowIndex, finalFolderCol + 1).getValue()) {
+        sheet.getRange(rowIndex, finalFolderCol + 1).setValue(folder.getUrl());
+      }
+    }
+
     return { success: true, message: "Order berhasil diupdate" };
 
   } catch (e) {
     console.error("Error updateOrder:", e);
     return { success: false, message: "Gagal mengupdate order" };
+  }
+}
+
+function getOrderRowAndHeaders(orderId) {
+  const sheet = SHEETS.ORDER;
+  const data = sheet.getDataRange().getValues();
+  const headers = data[0].map(h => String(h).trim());
+  const idCol = headers.findIndex(h => h.toUpperCase() === 'ID PESANAN');
+  if (idCol === -1) throw new Error('Kolom ID PESANAN tidak ditemukan');
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][idCol]).trim() === String(orderId).trim()) {
+      return { sheet, headers, rowIndex: i + 1, row: data[i] };
+    }
+  }
+  throw new Error('Order tidak ditemukan');
+}
+
+function extractDriveFolderId(urlOrId) {
+  const value = String(urlOrId || '').trim();
+  if (!value) return '';
+  const folderMatch = value.match(/\/folders\/([-\w]+)/);
+  if (folderMatch && folderMatch[1]) return folderMatch[1];
+  const m = value.match(/[-\w]{20,}/);
+  return m ? m[0] : value;
+}
+
+function getOrCreateOrderFolder(orderId, type, currentFolderUrl, orderFolderUrl) {
+  const rootFolderId = '11XCjzCeG4HtojpUUKMrObkb-aefkgkfr';
+  const root = DriveApp.getFolderById(rootFolderId);
+
+  if (currentFolderUrl) {
+    const existingId = extractDriveFolderId(currentFolderUrl);
+    if (existingId) {
+      try { return DriveApp.getFolderById(existingId); } catch (e) {}
+    }
+  }
+
+  let orderFolder = null;
+  const orderFolderId = extractDriveFolderId(orderFolderUrl);
+  if (orderFolderId) {
+    try { orderFolder = DriveApp.getFolderById(orderFolderId); } catch (e) {}
+  }
+  if (!orderFolder) {
+    const matches = root.getFoldersByName(orderId);
+    orderFolder = matches.hasNext() ? matches.next() : root.createFolder(orderId);
+  }
+
+  const subName = type === 'final' ? 'DOKUMEN_FINAL' : 'DOKUMEN_AWAL';
+  const sub = orderFolder.getFoldersByName(subName);
+  return sub.hasNext() ? sub.next() : orderFolder.createFolder(subName);
+}
+
+function getOrderDocumentFiles(orderId, docType) {
+  try {
+    const { headers, row } = getOrderRowAndHeaders(orderId);
+    const isFinal = String(docType || '').toLowerCase() === 'final';
+    const folderKey = isFinal ? 'FOLDER DOKUMEN FINAL' : 'FOLDER DOKUMEN AWAL';
+    const folderCol = headers.findIndex(h => h.toUpperCase() === folderKey);
+    const orderFolderCol = headers.findIndex(h => h.toUpperCase() === 'FOLDER DOKUMEN AWAL');
+    const folderUrl = folderCol !== -1 ? String(row[folderCol] || '') : '';
+    const orderFolderUrl = orderFolderCol !== -1 ? String(row[orderFolderCol] || '') : '';
+    const folder = getOrCreateOrderFolder(orderId, isFinal ? 'final' : 'initial', folderUrl, orderFolderUrl);
+
+    const files = [];
+    const it = folder.getFiles();
+    while (it.hasNext()) {
+      const f = it.next();
+      files.push({
+        id: f.getId(),
+        name: f.getName(),
+        mimeType: f.getMimeType(),
+        url: f.getUrl(),
+        reviewUrl: `https://drive.google.com/file/d/${f.getId()}/preview`,
+        downloadUrl: `https://drive.google.com/uc?export=download&id=${f.getId()}`,
+        sizeKb: Math.round((f.getSize() || 0) / 1024),
+        updatedAt: Utilities.formatDate(f.getLastUpdated(), Session.getScriptTimeZone() || 'GMT+7', 'dd/MM/yyyy HH:mm')
+      });
+    }
+    return { success: true, folderUrl: folder.getUrl(), files };
+  } catch (e) {
+    return { success: false, message: e.toString(), files: [] };
+  }
+}
+
+function uploadOrderDocumentFiles(orderId, docType, files) {
+  try {
+    const ctx = getOrderRowAndHeaders(orderId);
+    const isFinal = String(docType || '').toLowerCase() === 'final';
+    const folderKey = isFinal ? 'FOLDER DOKUMEN FINAL' : 'FOLDER DOKUMEN AWAL';
+    const folderCol = ctx.headers.findIndex(h => h.toUpperCase() === folderKey);
+    const orderFolderCol = ctx.headers.findIndex(h => h.toUpperCase() === 'FOLDER DOKUMEN AWAL');
+    const folderUrl = folderCol !== -1 ? String(ctx.row[folderCol] || '') : '';
+    const orderFolderUrl = orderFolderCol !== -1 ? String(ctx.row[orderFolderCol] || '') : '';
+
+    const folder = getOrCreateOrderFolder(orderId, isFinal ? 'final' : 'initial', folderUrl, orderFolderUrl);
+    (files || []).forEach(f => {
+      const blob = Utilities.newBlob(Utilities.base64Decode(f.data), f.mimeType || 'application/octet-stream', f.filename || ('upload-' + Date.now()));
+      folder.createFile(blob);
+    });
+
+    if (folderCol !== -1) ctx.sheet.getRange(ctx.rowIndex, folderCol + 1).setValue(folder.getUrl());
+    return { success: true, message: 'File berhasil diupload', folderUrl: folder.getUrl() };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+function downloadOrderDocumentZip(orderId, docType) {
+  try {
+    const data = getOrderDocumentFiles(orderId, docType);
+    if (!data.success) return data;
+    if (!data.files || data.files.length === 0) return { success: false, message: 'Belum ada file untuk di-zip.' };
+    const blobs = data.files.map(f => DriveApp.getFileById(f.id).getBlob().setName(f.name));
+    const zipBlob = Utilities.zip(blobs, `${orderId}-${docType || 'dokumen'}.zip`);
+    const file = DriveApp.createFile(zipBlob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    return { success: true, url: file.getDownloadUrl(), fileUrl: file.getUrl(), name: file.getName() };
+  } catch (e) {
+    return { success: false, message: e.toString() };
   }
 }
 
@@ -466,9 +607,13 @@ function calculateOrderFinanceServer(o) {
   const discountP = Number(o.DISCOUNT) || 0;
   const net = gross - (gross * discountP / 100);
   const dpP = Number(o.DP) || 0;
-  const dpAmount = net * dpP / 100;
-  const balance = net - dpAmount;
-  return { gross, discountP, net, dpP, dpAmount, balance };
+  const originalDpAmount = net * dpP / 100;
+  const isPaidFull = String(o['STATUS PEMBAYARAN'] || '').toLowerCase() === 'paid full'
+    || String(o['TAHAPAN PESANAN'] || '').toLowerCase() === 'selesai';
+  const dpAmount = isPaidFull ? 0 : originalDpAmount;
+  const balance = isPaidFull ? 0 : (net - dpAmount);
+  const pelunasanAmount = isPaidFull ? (net - originalDpAmount) : 0;
+  return { gross, discountP, net, dpP, dpAmount, balance, isPaidFull, originalDpAmount, pelunasanAmount };
 }
 
 function generateInvoicePdf(id) {
@@ -486,7 +631,7 @@ function generateInvoicePdf(id) {
   sheet.getRange('A5').setValue(o['NAMA PELANGGAN']);
   sheet.getRange('A6').setValue('WA: ' + o['NO HANDPHONE']);
   sheet.getRange('G4').setValue('Status Bayar:');
-  sheet.getRange('G5').setValue(o['STATUS PEMBAYARAN']);
+  sheet.getRange('G5').setValue(fin.isPaidFull ? 'Paid Full' : (o['STATUS PEMBAYARAN'] || 'Unpaid'));
   sheet.getRange('G6').setValue(new Date().toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'}));
   sheet.getRange('A8').setValue('Deskripsi');
   sheet.getRange('F8').setValue('Qty');
@@ -497,6 +642,19 @@ function generateInvoicePdf(id) {
   sheet.getRange('G9').setValue(fin.gross);
   sheet.getRange('G11').setValue('Diskon: -' + fin.gross * fin.discountP / 100);
   sheet.getRange('G12').setValue('Net: ' + fin.net);
+  sheet.getRange('A12').setValue('Riwayat Pembayaran:');
+  let historyRow = 13;
+  if (fin.originalDpAmount > 0) {
+    sheet.getRange('A' + historyRow).setValue('DP (' + fin.dpP + '%)');
+    sheet.getRange('C' + historyRow).setValue(fin.originalDpAmount);
+    historyRow++;
+  }
+  if (fin.isPaidFull) {
+    sheet.getRange('A' + historyRow).setValue('Pelunasan');
+    sheet.getRange('C' + historyRow).setValue(fin.pelunasanAmount > 0 ? fin.pelunasanAmount : fin.net);
+    historyRow++;
+  }
+
   sheet.getRange('G13').setValue('DP Paid: -' + fin.dpAmount);
   sheet.getRange('G14').setValue('SISA TAGIHAN: ' + fin.balance);
   const url = 'https://docs.google.com/spreadsheets/d/' + pdf.getId() + '/export?exportFormat=pdf';
@@ -658,12 +816,12 @@ function generateInitialFolder(orderId) {
 
 function getWebSettings() {
   const props = PropertiesService.getScriptProperties();
-  return { name1: props.getProperty('WEB_NAME1') || 'Lentera', name2: props.getProperty('WEB_NAME2') || 'Cendekia', tagline1: props.getProperty('WEB_TAGLINE1') || 'Solusi Terpercaya Sejak 2020', tagline2: props.getProperty('WEB_TAGLINE2') || 'Solusi Terbaik Untuk', tagline3: props.getProperty('WEB_TAGLINE3') || 'Karya Akademik', slogan: props.getProperty('WEB_SLOGAN') || 'Premium Academic Support' };
+  return { name1: props.getProperty('WEB_NAME1') || 'Lentera', name2: props.getProperty('WEB_NAME2') || 'Cendekia', tagline1: props.getProperty('WEB_TAGLINE1') || 'Solusi Terpercaya Sejak 2020', tagline2: props.getProperty('WEB_TAGLINE2') || 'Solusi Terbaik Untuk', tagline3: props.getProperty('WEB_TAGLINE3') || 'Karya Akademik', slogan: props.getProperty('WEB_SLOGAN') || 'Premium Academic Support', logoUrl: props.getProperty('WEB_LOGO_URL') || '', discountLabel: props.getProperty('WEB_DISCOUNT_LABEL') || '$ DISKON SPESIAL' };
 }
 
 function saveWebSettings(payload) {
   const props = PropertiesService.getScriptProperties();
-  props.setProperty('WEB_NAME1', payload.name1 || 'Lentera'); props.setProperty('WEB_NAME2', payload.name2 || 'Cendekia'); props.setProperty('WEB_TAGLINE1', payload.tagline1 || ''); props.setProperty('WEB_TAGLINE2', payload.tagline2 || ''); props.setProperty('WEB_TAGLINE3', payload.tagline3 || ''); props.setProperty('WEB_SLOGAN', payload.slogan || '');
+  props.setProperty('WEB_NAME1', payload.name1 || 'Lentera'); props.setProperty('WEB_NAME2', payload.name2 || 'Cendekia'); props.setProperty('WEB_TAGLINE1', payload.tagline1 || ''); props.setProperty('WEB_TAGLINE2', payload.tagline2 || ''); props.setProperty('WEB_TAGLINE3', payload.tagline3 || ''); props.setProperty('WEB_SLOGAN', payload.slogan || ''); props.setProperty('WEB_LOGO_URL', payload.logoUrl || ''); props.setProperty('WEB_DISCOUNT_LABEL', payload.discountLabel || '$ DISKON SPESIAL');
   return { success: true };
 }
 
@@ -684,6 +842,24 @@ function getWALogData() {
     }
     return result;
   } catch (e) { return []; }
+}
+
+function clearWALogData() {
+  try {
+    const sheet = createWALogSheet();
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
+    }
+    return { success: true, message: "Riwayat WA Log berhasil dihapus." };
+  } catch (e) {
+    return { success: false, message: e.toString() };
+  }
+}
+
+// Alias kompatibilitas jika frontend memanggil nama fungsi berbeda
+function clearWALog() {
+  return clearWALogData();
 }
 
 function savePengeluaran(payload) {
@@ -1030,6 +1206,3 @@ function checkPublicOrderStatus(orderId) {
   };
   
 }
-
-
-
