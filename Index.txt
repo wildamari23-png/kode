@@ -2880,30 +2880,24 @@ window.handlePublicOrder = async function(e) {
         <p class="text-slate-700 leading-relaxed whitespace-pre-wrap">${o['RINCIAN PESANAN'] || 'Tidak ada deskripsi tambahan.'}</p>
       </div>
 
-      <!-- FOLDER DOKUMEN -->
+      <!-- DOKUMEN AWAL & FINAL -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div class="bg-white p-5 rounded-2xl border shadow-sm">
-          <p class="text-xs font-bold text-slate-400 mb-3">FOLDER DOKUMEN AWAL</p>
-          ${o['FOLDER DOKUMEN AWAL'] 
-            ? `<div class="flex items-center gap-3">
-                <a href="${o['FOLDER DOKUMEN AWAL']}" target="_blank" class="text-emerald-600 hover:underline flex-1 flex items-center gap-2">
-                  <i data-lucide="folder" class="w-4 h-4"></i> Buka Folder
-                </a>
-                <button onclick="copyText('${o['FOLDER DOKUMEN AWAL']}')" 
-                        class="text-xs px-4 py-2 bg-white border border-emerald-200 text-emerald-700 rounded-xl hover:bg-emerald-50 flex items-center gap-1">
-                  📋 Copy Link
-                </button>
-              </div>` 
-            : `<button onclick="generateInitialFolder('${id}')" class="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2">
-                <i data-lucide="folder-plus" class="w-5 h-5"></i> Buat Folder Awal
-              </button>`}
+        <div class="bg-white p-5 rounded-2xl border shadow-sm space-y-3">
+          <p class="text-xs font-bold text-slate-400">DOKUMEN AWAL (Upload + Download + ZIP)</p>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="generateInitialFolder('${id}')" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1"><i data-lucide="folder-plus" class="w-4 h-4"></i> Generate Folder</button>
+            <button onclick="refreshOrderDocs('${id}', 'initial')" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">Refresh</button>
+          </div>
+          <input type="file" id="upload-initial-${id}" multiple class="w-full text-xs border rounded-xl p-2">
+          <button onclick="uploadOrderDocs('${id}', 'initial')" class="w-full py-2.5 bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold rounded-xl text-xs">Upload Dokumen Awal</button>
+          <div id="order-docs-initial-${id}" class="text-xs text-slate-500">Memuat dokumen awal...</div>
         </div>
 
-        <div class="bg-white p-5 rounded-2xl border shadow-sm">
-          <p class="text-xs font-bold text-slate-400 mb-3">FOLDER DOKUMEN FINAL</p>
-          ${o['FOLDER DOKUMEN FINAL'] 
-            ? `<a href="${o['FOLDER DOKUMEN FINAL']}" target="_blank" class="text-indigo-600 hover:underline flex items-center gap-2"><i data-lucide="folder" class="w-4 h-4"></i> Buka Folder Final</a>` 
-            : `<p class="text-slate-400 italic">Belum ada dokumen final</p>`}
+        <div class="bg-white p-5 rounded-2xl border shadow-sm space-y-3">
+          <p class="text-xs font-bold text-slate-400">DOKUMEN FINAL (View-only jika belum lunas)</p>
+          <input type="file" id="upload-final-${id}" multiple class="w-full text-xs border rounded-xl p-2">
+          <button onclick="uploadOrderDocs('${id}', 'final')" class="w-full py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-xl text-xs">Upload Dokumen Final</button>
+          <div id="order-docs-final-${id}" class="text-xs text-slate-500">Memuat dokumen final...</div>
         </div>
       </div>
 
@@ -2933,6 +2927,8 @@ window.handlePublicOrder = async function(e) {
   document.getElementById('modal-content-body').innerHTML = html;
   document.getElementById('modal-overlay').classList.remove('hidden');
   if (window.lucide) lucide.createIcons();
+  refreshOrderDocs(id, 'initial');
+  refreshOrderDocs(id, 'final');
 };
 
     window.openOrderUpdate = function(id) {
@@ -3064,10 +3060,100 @@ window.handlePublicOrder = async function(e) {
       showLoading(true);
       try {
         const result = await serverCall('generateInitialFolder', orderId);
-        if (result.success) { customAlert("✅ Berhasil", "Folder awal telah dibuat"); closeModal(); refreshData(); } 
+        if (result.success) { customAlert("✅ Berhasil", "Folder awal telah dibuat"); refreshOrderDocs(orderId, 'initial'); refreshData(); } 
         else { customAlert("Gagal", result.message); }
       } catch(e) { customAlert("Error", "Gagal membuat folder"); } finally { showLoading(false); }
     }
+
+    window.refreshOrderDocs = async function(orderId, docType = 'initial') {
+      const box = document.getElementById(`order-docs-${docType}-${orderId}`);
+      if (!box) return;
+      box.innerHTML = '<p class="text-slate-400">Memuat file...</p>';
+      try {
+        const res = await serverCall('getOrderDocumentFiles', orderId, docType);
+        if (!res.success) {
+          box.innerHTML = `<p class="text-rose-500">${res.message || 'Gagal memuat file.'}</p>`;
+          return;
+        }
+        const order = (DASHBOARD_CACHE.orders || []).find(x => x['ID PESANAN'] === orderId) || {};
+        const isPaidFull = String(order['STATUS PEMBAYARAN'] || '').toLowerCase().includes('paid full');
+        const files = res.files || [];
+        const canDownload = docType === 'initial' || isPaidFull;
+
+        if (files.length === 0) {
+          box.innerHTML = `<p class="text-slate-400 italic">Belum ada file ${docType === 'final' ? 'final' : 'awal'}.</p>`;
+          return;
+        }
+
+        const listHtml = files.map(f => {
+          const previewBtn = `<button onclick="previewOrderDocProtected('${f.url}', '${String(f.name).replace(/'/g, "\\'")}', '${orderId}')" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
+          const downloadBtn = canDownload
+            ? `<a href="${f.downloadUrl}" target="_blank" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Download</a>`
+            : `<span class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 font-bold">Terkunci sampai lunas</span>`;
+          return `<div class="flex items-center justify-between gap-2 border rounded-xl p-2">
+            <div class="min-w-0">
+              <p class="font-semibold text-slate-700 truncate">${f.name}</p>
+              <p class="text-[10px] text-slate-400">${f.sizeKb || 0} KB</p>
+            </div>
+            <div class="flex items-center gap-1 text-[10px]">${previewBtn}${downloadBtn}</div>
+          </div>`;
+        }).join('');
+
+        const zipBtn = (files.length > 1 && canDownload)
+          ? `<button onclick="downloadOrderDocsZip('${orderId}', '${docType}')" class="w-full mt-2 py-2 bg-slate-900 text-white rounded-xl text-[11px] font-bold">Download Semua (.ZIP)</button>`
+          : '';
+        const note = (!canDownload && docType === 'final')
+          ? `<p class="text-[10px] text-amber-700 mt-2">Mode review aktif: pelanggan hanya bisa lihat dokumen final (watermark), download dikunci sampai status pembayaran Lunas.</p>`
+          : '';
+        box.innerHTML = listHtml + zipBtn + note;
+      } catch (e) {
+        box.innerHTML = '<p class="text-rose-500">Gagal memuat file dokumen.</p>';
+      }
+    };
+
+    window.uploadOrderDocs = async function(orderId, docType = 'initial') {
+      const input = document.getElementById(`upload-${docType}-${orderId}`);
+      if (!input || !input.files || input.files.length === 0) return customAlert('Info', 'Pilih file dulu sebelum upload.');
+      showLoading(true, 'Upload dokumen...');
+      try {
+        const files = await Promise.all(Array.from(input.files).map(async f => ({ filename: f.name, mimeType: f.type, data: await fileToBase64(f) })));
+        const res = await serverCall('uploadOrderDocumentFiles', orderId, docType, files);
+        if (!res.success) throw new Error(res.message || 'Upload gagal');
+        customAlert('✅ Berhasil', `${files.length} file berhasil diupload.`);
+        input.value = '';
+        refreshOrderDocs(orderId, docType);
+      } catch (e) {
+        customAlert('❌ Gagal', e.message || 'Tidak bisa upload dokumen.');
+      } finally {
+        showLoading(false);
+      }
+    };
+
+    window.downloadOrderDocsZip = async function(orderId, docType = 'initial') {
+      showLoading(true, 'Membuat file ZIP...');
+      try {
+        const res = await serverCall('downloadOrderDocumentZip', orderId, docType);
+        if (!res.success) throw new Error(res.message || 'Gagal membuat zip');
+        window.open(res.url || res.fileUrl, '_blank');
+      } catch (e) {
+        customAlert('❌ Gagal', e.message || 'Tidak bisa membuat ZIP.');
+      } finally {
+        showLoading(false);
+      }
+    };
+
+    window.previewOrderDocProtected = function(fileUrl, fileName, orderId) {
+      const safeName = String(fileName || 'Dokumen').replace(/</g, '&lt;');
+      const viewer = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(fileUrl)}`;
+      const wm = encodeURIComponent(`Review Only • ${orderId} • ${safeName} • Lentera Cendekia`);
+      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Preview Dokumen</title><style>body{margin:0;background:#0f172a;color:#fff;font-family:Arial} .top{padding:10px 14px;background:#111827;font-size:12px;font-weight:700}.wrap{position:fixed;inset:40px 0 0 0}.wm{position:absolute;inset:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='220'%3E%3Ctext x='20' y='120' transform='rotate(-25 20,120)' fill='rgba(239,68,68,0.18)' font-size='18' font-family='Arial'%3E${wm}%3C/text%3E%3C/svg%3E");opacity:.9} iframe{border:0;width:100%;height:100%}</style></head><body><div class='top'>Preview only (watermark aktif) — download dinonaktifkan sampai lunas.</div><div class='wrap'><iframe src='${viewer}'></iframe><div class='wm'></div></div></body></html>`;
+      const w = window.open('', '_blank');
+      if (w) {
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+      }
+    };
 
     // ==================== DP & FORM SYNC ====================
     window.toggleDPFieldManual = function() {
