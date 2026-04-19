@@ -3160,17 +3160,17 @@ window.handlePublicOrder = async function(e) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-      const viewer = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(fileUrl)}`;
+      const viewer = 'https://docs.google.com/gview?embedded=1&url=' + encodeURIComponent(fileUrl);
       const w = window.open('', '_blank');
       if (w) {
-        const wmText = `REVIEW ONLY • ${orderId} • ${safeName} • LENTERA CENDEKIA`;
+        const wmText = 'REVIEW ONLY - ' + orderId + ' - ' + safeName + ' - LENTERA CENDEKIA';
         w.document.title = 'Preview Dokumen';
         w.document.body.style.margin = '0';
         w.document.body.style.background = '#0f172a';
         w.document.body.style.fontFamily = 'Arial, sans-serif';
         w.document.body.innerHTML = `
           <div style="padding:10px 14px;background:#111827;color:#fff;font-size:12px;font-weight:700;">
-            Preview only (watermark aktif) — download dinonaktifkan sampai lunas.
+            Preview only (watermark aktif) - download dinonaktifkan sampai lunas.
           </div>
           <div style="position:fixed;inset:40px 0 0 0;">
             <iframe src="${viewer}" style="border:0;width:100%;height:100%;"></iframe>
