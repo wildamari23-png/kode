@@ -694,6 +694,11 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
           </div>
         </div>
 
+        <label class="flex items-center gap-2 text-white/80 text-xs font-semibold cursor-pointer select-none">
+          <input type="checkbox" id="remember-username" class="w-4 h-4 rounded border-white/40 bg-white/10">
+          Ingat Saya (Simpan username)
+        </label>
+
         <button type="submit" id="login-btn"
                 class="w-full py-5 bg-white text-slate-900 font-bold text-lg rounded-2xl shadow-xl hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2">
           <i data-lucide="log-in" class="w-5 h-5"></i> MASUK KE DASHBOARD
@@ -1607,6 +1612,7 @@ window.showLoading = function(show, message = '') {
         handlePromoBubbleVisibility();
         renderWhatsAppTestimonials();
         updateAuthHeader();
+        if (typeof prefillRememberedUsername === 'function') prefillRememberedUsername();
         typeHeadline(); 
       } catch (e) {
         console.error("InitApp Error", e);
@@ -1654,8 +1660,11 @@ window.switchView = function(view) {
   if (view === 'login') {
     const usernameInput = document.getElementById('login-username');
     const passwordInput = document.getElementById('login-password');
-    if (usernameInput) usernameInput.value = '';
+    const rememberCheckbox = document.getElementById('remember-username');
+    const rememberedUsername = localStorage.getItem('lc_remembered_username') || '';
+    if (usernameInput) usernameInput.value = rememberedUsername;
     if (passwordInput) passwordInput.value = '';
+    if (rememberCheckbox) rememberCheckbox.checked = !!rememberedUsername;
   }
 };
 
@@ -1897,12 +1906,17 @@ window.renderDashboardData = function() {
   // ==================== INFO GAJI TERAKHIR (RINGKASAN) ====================
   const tableMonitor = document.getElementById('table-monitor-body');
   if (tableMonitor) {
-    const gajiList = (DASHBOARD_CACHE.gaji || []).slice(0, 5);
+    let gajiList = DASHBOARD_CACHE.gaji || [];
+    if (isAdmin || isWorker) {
+      const loginUsername = String(CURRENT_USER.Username || '').trim().toLowerCase();
+      gajiList = gajiList.filter(g => String(g['Worker Username'] || '').trim().toLowerCase() === loginUsername);
+    }
+    gajiList = gajiList.slice(0, 5);
     if (gajiList.length === 0) {
       tableMonitor.innerHTML = `
         <tr>
           <td colspan="4" class="text-center py-12 text-slate-400 font-medium">
-            Belum ada data gaji terbaru
+            Belum ada data gaji terbaru untuk akun ini
           </td>
         </tr>`;
     } else {
@@ -5058,24 +5072,96 @@ window.downloadExpensePDF = function(type) {
   const now = new Date();
   let data = all;
   let title = '';
+  let periodLabel = '';
   if (type === 'hari') {
     data = all.filter(p => new Date(p['Tanggal'] || p['TANGGAL']).toDateString() === now.toDateString());
     title = `Laporan Pengeluaran Harian - ${now.toLocaleDateString('id-ID')}`;
+    periodLabel = now.toLocaleDateString('id-ID', { day: '2-digit', month: 'long', year: 'numeric' });
   } else if (type === 'bulan') {
     const m = Number(document.getElementById('exp-month')?.value || now.getMonth());
     const y = Number(document.getElementById('exp-month-year')?.value || now.getFullYear());
     data = all.filter(p => { const d = new Date(p['Tanggal'] || p['TANGGAL']); return d.getMonth()===m && d.getFullYear()===y; });
     title = `Laporan Pengeluaran Bulanan - ${m+1}/${y}`;
+    periodLabel = new Date(y, m, 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
   } else {
     const y = Number(document.getElementById('exp-year')?.value || now.getFullYear());
     data = all.filter(p => new Date(p['Tanggal'] || p['TANGGAL']).getFullYear() === y);
     title = `Laporan Pengeluaran Tahunan - ${y}`;
+    periodLabel = `${y}`;
   }
+
+  const totalPengeluaran = data.reduce((sum, p) => sum + (Number(p['Jumlah']) || 0), 0);
+  const totalTransaksi = data.length;
+  const ringkasanKategori = data.reduce((acc, p) => {
+    const key = String(p['Kategori'] || 'Lainnya').trim() || 'Lainnya';
+    acc[key] = (acc[key] || 0) + (Number(p['Jumlah']) || 0);
+    return acc;
+  }, {});
+  const topKategori = Object.entries(ringkasanKategori).sort((a, b) => b[1] - a[1])[0];
+
+  const signedAt = new Date().toLocaleString('id-ID');
+  const financeOfficer = CURRENT_USER?.['Nama Lengkap Admin'] || CURRENT_USER?.Username || 'Divisi Keuangan';
+  const digitalSignature = `LC-FIN|${financeOfficer}|${type}|${periodLabel}|${totalPengeluaran}|${new Date().toISOString()}`;
+
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF('p', 'mm', 'a4');
-  doc.setFontSize(14); doc.text(title, 14, 16);
-  const rows = data.map(p => [new Date(p['Tanggal'] || p['TANGGAL']).toLocaleDateString('id-ID'), p['ID Pengeluaran'], p['Kategori'], p['Deskripsi'], formatIDR(p['Jumlah'])]);
-  doc.autoTable({ startY: 24, head: [['Tanggal','ID','Kategori','Deskripsi','Jumlah']], body: rows, styles: { fontSize: 8 } });
+
+  // Header profesional
+  doc.setFillColor(30, 41, 59);
+  doc.rect(0, 0, 210, 36, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.text('LENTERA CENDEKIA', 14, 14);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Laporan Keuangan • Pengeluaran', 14, 20);
+  doc.text(`Generated: ${signedAt}`, 14, 26);
+  doc.text(`Periode: ${periodLabel}`, 14, 31);
+
+  doc.setTextColor(30, 41, 59);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text(title, 14, 46);
+
+  // Ringkasan
+  doc.setDrawColor(226, 232, 240);
+  doc.setFillColor(248, 250, 252);
+  doc.roundedRect(14, 51, 182, 30, 3, 3, 'FD');
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Total Transaksi: ${totalTransaksi}`, 18, 60);
+  doc.text(`Total Pengeluaran: ${formatIDR(totalPengeluaran)}`, 18, 67);
+  doc.text(`Kategori Dominan: ${topKategori ? `${topKategori[0]} (${formatIDR(topKategori[1])})` : '-'}`, 18, 74);
+
+  const rows = data.map(p => [
+    new Date(p['Tanggal'] || p['TANGGAL']).toLocaleDateString('id-ID'),
+    p['ID Pengeluaran'],
+    p['Kategori'],
+    p['Deskripsi'],
+    formatIDR(p['Jumlah'])
+  ]);
+  doc.autoTable({
+    startY: 88,
+    head: [['Tanggal','ID','Kategori','Deskripsi','Jumlah']],
+    body: rows,
+    styles: { fontSize: 8, cellPadding: 2.8, textColor: [30, 41, 59] },
+    headStyles: { fillColor: [51, 65, 85], textColor: 255, halign: 'center' },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: { 4: { halign: 'right' } }
+  });
+
+  const endY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : 100;
+  const signY = Math.max(endY + 16, 238);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text('Disahkan oleh,', 140, signY);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Divisi Keuangan', 140, signY + 7);
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(7);
+  doc.text(`Digital Sign: ${digitalSignature}`, 14, signY + 17, { maxWidth: 180 });
+
   doc.save(`LC-Pengeluaran-${type}.pdf`);
 };
 
@@ -5667,6 +5753,15 @@ function toggleFooter() {
 
 // ==================== HANDLE LOGIN (yang hilang) ====================
 // ==================== HANDLE LOGIN (VERSI FIXED & LENGKAP) ====================
+window.prefillRememberedUsername = function() {
+  const usernameInput = document.getElementById('login-username');
+  const rememberCheckbox = document.getElementById('remember-username');
+  if (!usernameInput || !rememberCheckbox) return;
+  const rememberedUsername = localStorage.getItem('lc_remembered_username') || '';
+  usernameInput.value = rememberedUsername;
+  rememberCheckbox.checked = !!rememberedUsername;
+};
+
 window.handleLogin = async function(e) {
   e.preventDefault();
   showLoading(true, "Sedang masuk ke dashboard...");
@@ -5674,10 +5769,13 @@ window.handleLogin = async function(e) {
   try {
     const username = document.getElementById('login-username').value.trim();
     const password = document.getElementById('login-password').value.trim();
+    const rememberUsername = !!document.getElementById('remember-username')?.checked;
 
     const res = await serverCall('login', username, password);
 
     if (res.success) {
+      if (rememberUsername) localStorage.setItem('lc_remembered_username', username);
+      else localStorage.removeItem('lc_remembered_username');
       CURRENT_USER = res.user;
       DASHBOARD_CACHE = {};                    // ← Penting: reset cache dulu
 
