@@ -838,8 +838,8 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
             </div>
 
              <div class="bg-white rounded-[2.5rem] border shadow-sm overflow-hidden">
-               <div class="px-10 py-8 border-b flex justify-between items-center"><h4 class="font-black text-xl">Order Terkini</h4><button onclick="refreshData()" class="p-2 text-indigo-500 bg-indigo-50 rounded-xl"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button></div>
-               <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 text-[10px] text-slate-400 font-black uppercase"><tr><th class="px-10 py-5">Client</th><th class="px-10 py-5">Layanan</th><th class="px-10 py-5">Status</th><th class="px-10 py-5">Aksi</th></tr></thead><tbody id="table-monitor-body" class="divide-y divide-slate-50"></tbody></table></div>
+               <div class="px-10 py-8 border-b flex justify-between items-center"><h4 class="font-black text-xl">Informasi Gaji Terakhir</h4><button onclick="refreshData()" class="p-2 text-indigo-500 bg-indigo-50 rounded-xl"><i data-lucide="refresh-cw" class="w-4 h-4"></i></button></div>
+               <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 text-[10px] text-slate-400 font-black uppercase"><tr><th class="px-10 py-5">Periode</th><th class="px-10 py-5">Penerima</th><th class="px-10 py-5">Total Tercatat</th><th class="px-10 py-5">Aksi</th></tr></thead><tbody id="table-monitor-body" class="divide-y divide-slate-50"></tbody></table></div>
              </div>
              
              <!-- Tombol Laporan (Dapat dilihat semua Role) -->
@@ -911,6 +911,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
                 <button onclick="openExpenseReportModal()" class="px-6 py-4 bg-slate-800 text-white rounded-2xl font-bold text-xs shadow-lg flex items-center gap-2 hover:bg-slate-700 transition-all">
                   <i data-lucide="file-down" class="w-4 h-4"></i> Unduh Laporan
                 </button>
+                <button onclick="openGajiModal()" class="px-6 py-4 bg-emerald-700 text-white rounded-2xl font-bold text-xs shadow-lg hover:bg-emerald-800 transition-all">+ Input Gaji</button>
                 <button onclick="openPengeluaranModal()" class="px-6 py-4 gradient-primary text-white rounded-2xl font-bold text-xs shadow-lg">+ Input Pengeluaran</button>
               </div>
             </div>
@@ -1893,29 +1894,25 @@ window.renderDashboardData = function() {
   const statPending = document.getElementById('stat-pending');
   if (statPending) statPending.innerText = pending;
 
-  // ==================== TABEL ORDER TERKINI ====================
+  // ==================== INFO GAJI TERAKHIR (RINGKASAN) ====================
   const tableMonitor = document.getElementById('table-monitor-body');
   if (tableMonitor) {
-    if (orders.length === 0) {
+    const gajiList = (DASHBOARD_CACHE.gaji || []).slice(0, 5);
+    if (gajiList.length === 0) {
       tableMonitor.innerHTML = `
         <tr>
           <td colspan="4" class="text-center py-12 text-slate-400 font-medium">
-            Belum ada order saat ini
+            Belum ada data gaji terbaru
           </td>
         </tr>`;
     } else {
-      tableMonitor.innerHTML = orders.slice(0, 5).map(o => `
+      tableMonitor.innerHTML = gajiList.map(g => `
         <tr class="hover:bg-slate-50">
-          <td class="px-10 py-5">${o['NAMA PELANGGAN'] || '-'}</td>
-          <td class="px-10 py-5">${o.LAYANAN || '-'}</td>
+          <td class="px-10 py-5 font-bold">${g['Bulan/Tahun'] || '-'}</td>
+          <td class="px-10 py-5">${g['Worker Username'] || '-'}</td>
+          <td class="px-10 py-5 font-black text-emerald-700">${formatIDR(g['Total Terima'])}</td>
           <td class="px-10 py-5">
-            <span class="status-pill status-${o['TAHAPAN PESANAN'] || 'Antrean'}">
-              ${o['TAHAPAN PESANAN'] || 'Antrean'}
-            </span>
-          </td>
-          <td class="px-10 py-5">
-            <button onclick="openOrderDetail('${o['ID PESANAN']}')" 
-                    class="text-indigo-600 font-bold text-xs hover:underline">Detail</button>
+            <button onclick="downloadSlipGaji('${g['ID Gaji']}')" class="text-indigo-600 font-bold text-xs hover:underline">Detail & Preview Slip</button>
           </td>
         </tr>
       `).join('');
@@ -2973,7 +2970,7 @@ window.handlePublicOrder = async function(e) {
 
       <div class="flex flex-wrap gap-3 pt-2">
         <button onclick="openOrderUpdate('${id}')" class="flex-1 py-3.5 gradient-primary text-white font-bold rounded-2xl shadow-lg flex items-center justify-center gap-2"><i data-lucide="edit-3" class="w-4 h-4"></i> Update Status / Deadline</button>
-        <button onclick="generateInvoice('${id}')" class="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2"><i data-lucide="file-down" class="w-4 h-4"></i> Cetak Invoice</button>
+        <button onclick="openInvoiceExportModal('${id}')" class="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl flex items-center justify-center gap-2"><i data-lucide="file-down" class="w-4 h-4"></i> Export Invoice</button>
         <button onclick="closeModal()" class="px-8 py-3.5 bg-slate-100 text-slate-600 font-bold rounded-2xl">Tutup</button>
       </div>
     </div>
@@ -4494,6 +4491,98 @@ window.showFinancialSummary = function() {
         customAlert('Error', `Gagal export slip ${format.toUpperCase()}.`);
       } finally { showLoading(false); }
     };
+window.fillInvoiceCaptureSimple = function(orderId) {
+  const order = (DASHBOARD_CACHE.orders || []).find(o => o['ID PESANAN'] === orderId);
+  if (!order) throw new Error('Pesanan tidak ditemukan');
+  const fin = calculateOrderFinance(order);
+  document.getElementById('inv-id-display').innerText = orderId;
+  document.getElementById('inv-tgl-display').innerText = new Date().toLocaleDateString('id-ID');
+  document.getElementById('inv-nama-display').innerText = order['NAMA PELANGGAN'] || '-';
+  document.getElementById('inv-hp-display').innerText = order['NO HANDPHONE'] || '-';
+  document.getElementById('inv-status-display').innerText = order['STATUS PEMBAYARAN'] || '-';
+  document.getElementById('inv-layanan-display').innerText = order['LAYANAN'] || '-';
+  document.getElementById('inv-qty-display').innerText = order['QTY'] || 1;
+  document.getElementById('inv-subtotal-display1').innerText = formatIDR(fin.gross);
+  document.getElementById('inv-subtotal-display2').innerText = formatIDR(fin.gross);
+  document.getElementById('inv-rincian-display').innerText = order['RINCIAN PESANAN'] || '-';
+  document.getElementById('inv-subtotal-display3').innerText = formatIDR(fin.gross);
+  document.getElementById('inv-discount-display').innerText = `- ${formatIDR(fin.gross - fin.net)}`;
+  document.getElementById('inv-net-display').innerText = formatIDR(fin.net);
+  document.getElementById('inv-dp-display').innerText = formatIDR(fin.dpAmount);
+  document.getElementById('inv-total-big').innerText = formatIDR(fin.balance);
+  return { order, fin };
+};
+
+window.generateInvoiceCanvas = async function(orderId) {
+  fillInvoiceCaptureSimple(orderId);
+  const mTop = Number(document.getElementById('inv-margin-top')?.value || 24);
+  const mRight = Number(document.getElementById('inv-margin-right')?.value || 24);
+  const mBottom = Number(document.getElementById('inv-margin-bottom')?.value || 24);
+  const mLeft = Number(document.getElementById('inv-margin-left')?.value || 24);
+  const base = document.getElementById('invoice-capture');
+  const wrap = document.createElement('div');
+  wrap.style.background = '#fff';
+  wrap.style.padding = `${mTop}px ${mRight}px ${mBottom}px ${mLeft}px`;
+  wrap.style.width = (595 + mLeft + mRight) + 'px';
+  const clone = base.cloneNode(true);
+  clone.id = 'invoice-capture-clone-temp';
+  wrap.appendChild(clone);
+  document.body.appendChild(wrap);
+  const canvas = await html2canvas(wrap, { scale: 3, useCORS: true, backgroundColor: '#ffffff' });
+  wrap.remove();
+  return canvas;
+};
+
+window.openInvoiceExportModal = function(orderId) {
+  window.CURRENT_INVOICE_ORDER = orderId;
+  const body = document.getElementById('modal-content-body');
+  body.innerHTML = `
+    <h3 class="text-2xl font-black mb-4">Export Invoice Professional</h3>
+    <p class="text-sm text-slate-500 mb-4">Atur margin, preview, lalu unduh PDF atau gambar.</p>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div><label class="text-xs font-bold">Margin Top</label><input id="inv-margin-top" type="number" value="24" min="0" class="w-full p-2 rounded-xl border"></div>
+      <div><label class="text-xs font-bold">Margin Right</label><input id="inv-margin-right" type="number" value="24" min="0" class="w-full p-2 rounded-xl border"></div>
+      <div><label class="text-xs font-bold">Margin Bottom</label><input id="inv-margin-bottom" type="number" value="24" min="0" class="w-full p-2 rounded-xl border"></div>
+      <div><label class="text-xs font-bold">Margin Left</label><input id="inv-margin-left" type="number" value="24" min="0" class="w-full p-2 rounded-xl border"></div>
+    </div>
+    <div class="flex gap-2 mb-4">
+      <button onclick="previewInvoiceExport()" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Preview</button>
+      <button onclick="exportInvoiceFile('png')" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Unduh Gambar</button>
+      <button onclick="exportInvoiceFile('pdf')" class="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold">Unduh PDF</button>
+    </div>
+    <div id="invoice-preview-box" class="border rounded-2xl bg-slate-50 p-3 text-center text-xs text-slate-500">Belum ada preview.</div>`;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+};
+
+window.previewInvoiceExport = async function() {
+  showLoading(true, 'Membuat preview invoice...');
+  try {
+    const canvas = await generateInvoiceCanvas(window.CURRENT_INVOICE_ORDER);
+    document.getElementById('invoice-preview-box').innerHTML = `<img src="${canvas.toDataURL('image/png')}" class="w-full rounded-xl border">`;
+  } catch (e) { customAlert('Error', 'Gagal membuat preview invoice.'); } finally { showLoading(false); }
+};
+
+window.exportInvoiceFile = async function(format = 'pdf') {
+  showLoading(true, `Menyiapkan invoice ${format.toUpperCase()}...`);
+  try {
+    const canvas = await generateInvoiceCanvas(window.CURRENT_INVOICE_ORDER);
+    if (format === 'png') {
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = `LC-Invoice-${window.CURRENT_INVOICE_ORDER}.png`;
+      link.click();
+    } else {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgData = canvas.toDataURL('image/jpeg', 0.9);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`LC-Invoice-${window.CURRENT_INVOICE_ORDER}.pdf`);
+    }
+  } catch (e) { customAlert('Error', 'Gagal export invoice.'); } finally { showLoading(false); }
+};
+
 // ==================== FIX: INVOICE & LAPORAN ====================
 window.generateInvoice = async function(orderId) {
   const order = DASHBOARD_CACHE.orders.find(o => o['ID PESANAN'] === orderId);
@@ -4934,6 +5023,60 @@ window.deletePendapatan = async function(id) {
     refreshData();
     customAlert("Berhasil", "Pendapatan dihapus");
   } catch(e) { customAlert("Error", "Gagal menghapus"); } finally { showLoading(false); }
+};
+
+window.openExpenseReportModal = function() {
+  const body = document.getElementById('modal-content-body');
+  const currentYear = new Date().getFullYear();
+  let yearOptions = '';
+  for (let i = 0; i < 5; i++) yearOptions += `<option value="${currentYear - i}">${currentYear - i}</option>`;
+  body.innerHTML = `
+    <h3 class="text-2xl font-black mb-6 flex items-center gap-2"><i data-lucide="file-text" class="text-slate-700"></i> Unduh Laporan Pengeluaran</h3>
+    <div class="space-y-5">
+      <div class="bg-slate-50 p-5 rounded-2xl border flex items-center justify-between">
+        <div><h4 class="font-bold">Laporan Harian</h4><p class="text-xs text-slate-500">Pengeluaran hari ini</p></div>
+        <button onclick="downloadExpensePDF('hari')" class="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold">Unduh PDF</button>
+      </div>
+      <div class="bg-slate-50 p-5 rounded-2xl border">
+        <div class="flex gap-3 items-end">
+          <div class="flex-1"><label class="text-xs font-bold">Bulan</label><select id="exp-month" class="w-full p-3 rounded-xl border text-sm"><option value="0">Januari</option><option value="1">Februari</option><option value="2">Maret</option><option value="3">April</option><option value="4">Mei</option><option value="5">Juni</option><option value="6">Juli</option><option value="7">Agustus</option><option value="8">September</option><option value="9">Oktober</option><option value="10">November</option><option value="11">Desember</option></select></div>
+          <div class="w-40"><label class="text-xs font-bold">Tahun</label><select id="exp-month-year" class="w-full p-3 rounded-xl border text-sm">${yearOptions}</select></div>
+          <button onclick="downloadExpensePDF('bulan')" class="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold">Unduh</button>
+        </div>
+      </div>
+      <div class="bg-slate-50 p-5 rounded-2xl border flex items-center justify-between">
+        <div><h4 class="font-bold">Laporan Tahunan</h4><select id="exp-year" class="mt-2 p-2 rounded-xl border text-sm w-32">${yearOptions}</select></div>
+        <button onclick="downloadExpensePDF('tahun')" class="px-5 py-2.5 bg-slate-900 text-white rounded-xl text-sm font-bold">Unduh PDF</button>
+      </div>
+    </div>`;
+  document.getElementById('exp-month') && (document.getElementById('exp-month').value = new Date().getMonth());
+  document.getElementById('modal-overlay').classList.remove('hidden');
+};
+
+window.downloadExpensePDF = function(type) {
+  const all = DASHBOARD_CACHE.pengeluaran || [];
+  const now = new Date();
+  let data = all;
+  let title = '';
+  if (type === 'hari') {
+    data = all.filter(p => new Date(p['Tanggal'] || p['TANGGAL']).toDateString() === now.toDateString());
+    title = `Laporan Pengeluaran Harian - ${now.toLocaleDateString('id-ID')}`;
+  } else if (type === 'bulan') {
+    const m = Number(document.getElementById('exp-month')?.value || now.getMonth());
+    const y = Number(document.getElementById('exp-month-year')?.value || now.getFullYear());
+    data = all.filter(p => { const d = new Date(p['Tanggal'] || p['TANGGAL']); return d.getMonth()===m && d.getFullYear()===y; });
+    title = `Laporan Pengeluaran Bulanan - ${m+1}/${y}`;
+  } else {
+    const y = Number(document.getElementById('exp-year')?.value || now.getFullYear());
+    data = all.filter(p => new Date(p['Tanggal'] || p['TANGGAL']).getFullYear() === y);
+    title = `Laporan Pengeluaran Tahunan - ${y}`;
+  }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('p', 'mm', 'a4');
+  doc.setFontSize(14); doc.text(title, 14, 16);
+  const rows = data.map(p => [new Date(p['Tanggal'] || p['TANGGAL']).toLocaleDateString('id-ID'), p['ID Pengeluaran'], p['Kategori'], p['Deskripsi'], formatIDR(p['Jumlah'])]);
+  doc.autoTable({ startY: 24, head: [['Tanggal','ID','Kategori','Deskripsi','Jumlah']], body: rows, styles: { fontSize: 8 } });
+  doc.save(`LC-Pengeluaran-${type}.pdf`);
 };
 
 // Tombol Unduh Laporan (sama seperti pengeluaran)
