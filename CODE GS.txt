@@ -378,7 +378,9 @@ function getOrderRowAndHeaders(orderId) {
 function extractDriveFolderId(urlOrId) {
   const value = String(urlOrId || '').trim();
   if (!value) return '';
-  const m = value.match(/[-\w]{25,}/);
+  const folderMatch = value.match(/\/folders\/([-\w]+)/);
+  if (folderMatch && folderMatch[1]) return folderMatch[1];
+  const m = value.match(/[-\w]{20,}/);
   return m ? m[0] : value;
 }
 
@@ -388,7 +390,9 @@ function getOrCreateOrderFolder(orderId, type, currentFolderUrl, orderFolderUrl)
 
   if (currentFolderUrl) {
     const existingId = extractDriveFolderId(currentFolderUrl);
-    if (existingId) return DriveApp.getFolderById(existingId);
+    if (existingId) {
+      try { return DriveApp.getFolderById(existingId); } catch (e) {}
+    }
   }
 
   let orderFolder = null;
@@ -426,9 +430,10 @@ function getOrderDocumentFiles(orderId, docType) {
         name: f.getName(),
         mimeType: f.getMimeType(),
         url: f.getUrl(),
+        reviewUrl: `https://drive.google.com/file/d/${f.getId()}/preview`,
         downloadUrl: `https://drive.google.com/uc?export=download&id=${f.getId()}`,
         sizeKb: Math.round((f.getSize() || 0) / 1024),
-        updatedAt: f.getLastUpdated()
+        updatedAt: Utilities.formatDate(f.getLastUpdated(), Session.getScriptTimeZone() || 'GMT+7', 'dd/MM/yyyy HH:mm')
       });
     }
     return { success: true, folderUrl: folder.getUrl(), files };
@@ -1184,4 +1189,3 @@ function checkPublicOrderStatus(orderId) {
   };
   
 }
-

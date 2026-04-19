@@ -3085,17 +3085,26 @@ window.handlePublicOrder = async function(e) {
           return;
         }
 
+        const folderActions = `<div class="flex items-center gap-2 mb-2">
+          <a href="${res.folderUrl}" target="_blank" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[10px]">Buka Folder</a>
+          <button onclick="copyText('${String(res.folderUrl || '').replace(/'/g, "\\'")}')" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[10px]">Copy Link Folder</button>
+        </div>`;
+
         const listHtml = files.map(f => {
-          const previewBtn = `<button onclick="previewOrderDocProtected('${f.url}', '${String(f.name).replace(/'/g, "\\'")}', '${orderId}')" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
+          const safeName = String(f.name).replace(/'/g, "\\'");
+          const safeReview = String(f.reviewUrl || f.url || '').replace(/'/g, "\\'");
+          const safeDownload = String(f.downloadUrl || '').replace(/'/g, "\\'");
+          const previewBtn = `<button onclick="previewOrderDocProtected('${f.url}', '${safeName}', '${orderId}')" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
+          const reviewLinkBtn = `<button onclick="copyText('${safeReview}')" class="px-2 py-1 rounded-lg bg-violet-50 text-violet-700 font-bold">Copy Link Review</button>`;
           const downloadBtn = canDownload
-            ? `<a href="${f.downloadUrl}" target="_blank" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Download</a>`
+            ? `<a href="${f.downloadUrl}" target="_blank" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Download</a><button onclick="copyText('${safeDownload}')" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Copy Link Download</button>`
             : `<span class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 font-bold">Terkunci sampai lunas</span>`;
           return `<div class="flex items-center justify-between gap-2 border rounded-xl p-2">
             <div class="min-w-0">
               <p class="font-semibold text-slate-700 truncate">${f.name}</p>
-              <p class="text-[10px] text-slate-400">${f.sizeKb || 0} KB</p>
+              <p class="text-[10px] text-slate-400">${f.sizeKb || 0} KB • ${f.updatedAt || '-'}</p>
             </div>
-            <div class="flex items-center gap-1 text-[10px]">${previewBtn}${downloadBtn}</div>
+            <div class="flex flex-wrap items-center justify-end gap-1 text-[10px]">${previewBtn}${reviewLinkBtn}${downloadBtn}</div>
           </div>`;
         }).join('');
 
@@ -3105,7 +3114,7 @@ window.handlePublicOrder = async function(e) {
         const note = (!canDownload && docType === 'final')
           ? `<p class="text-[10px] text-amber-700 mt-2">Mode review aktif: pelanggan hanya bisa lihat dokumen final (watermark), download dikunci sampai status pembayaran Lunas.</p>`
           : '';
-        box.innerHTML = listHtml + zipBtn + note;
+        box.innerHTML = folderActions + listHtml + zipBtn + note;
       } catch (e) {
         box.innerHTML = '<p class="text-rose-500">Gagal memuat file dokumen.</p>';
       }
