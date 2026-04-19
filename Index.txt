@@ -3154,13 +3154,25 @@ window.handlePublicOrder = async function(e) {
     window.previewOrderDocProtected = function(fileUrl, fileName, orderId) {
       const safeName = String(fileName || 'Dokumen').replace(/</g, '&lt;');
       const viewer = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(fileUrl)}`;
-      const wm = encodeURIComponent(`Review Only • ${orderId} • ${safeName} • Lentera Cendekia`);
-      const html = `<!doctype html><html><head><meta charset="utf-8"><title>Preview Dokumen</title><style>body{margin:0;background:#0f172a;color:#fff;font-family:Arial} .top{padding:10px 14px;background:#111827;font-size:12px;font-weight:700}.wrap{position:fixed;inset:40px 0 0 0}.wm{position:absolute;inset:0;pointer-events:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='360' height='220'%3E%3Ctext x='20' y='120' transform='rotate(-25 20,120)' fill='rgba(239,68,68,0.18)' font-size='18' font-family='Arial'%3E${wm}%3C/text%3E%3C/svg%3E");opacity:.9} iframe{border:0;width:100%;height:100%}</style></head><body><div class='top'>Preview only (watermark aktif) — download dinonaktifkan sampai lunas.</div><div class='wrap'><iframe src='${viewer}'></iframe><div class='wm'></div></div></body></html>`;
       const w = window.open('', '_blank');
       if (w) {
-        w.document.open();
-        w.document.write(html);
-        w.document.close();
+        const wmText = `REVIEW ONLY • ${orderId} • ${safeName} • LENTERA CENDEKIA`;
+        w.document.title = 'Preview Dokumen';
+        w.document.body.style.margin = '0';
+        w.document.body.style.background = '#0f172a';
+        w.document.body.style.fontFamily = 'Arial, sans-serif';
+        w.document.body.innerHTML = `
+          <div style="padding:10px 14px;background:#111827;color:#fff;font-size:12px;font-weight:700;">
+            Preview only (watermark aktif) — download dinonaktifkan sampai lunas.
+          </div>
+          <div style="position:fixed;inset:40px 0 0 0;">
+            <iframe src="${viewer}" style="border:0;width:100%;height:100%;"></iframe>
+            <div style="position:absolute;inset:0;pointer-events:none;display:flex;flex-wrap:wrap;align-content:space-around;justify-content:space-around;opacity:.14;color:#ef4444;font-weight:800;font-size:18px;transform:rotate(-20deg);">
+              <span>${wmText}</span><span>${wmText}</span><span>${wmText}</span>
+              <span>${wmText}</span><span>${wmText}</span><span>${wmText}</span>
+            </div>
+          </div>
+        `;
       }
     };
 
