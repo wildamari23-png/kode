@@ -607,9 +607,13 @@ function calculateOrderFinanceServer(o) {
   const discountP = Number(o.DISCOUNT) || 0;
   const net = gross - (gross * discountP / 100);
   const dpP = Number(o.DP) || 0;
-  const dpAmount = net * dpP / 100;
-  const balance = net - dpAmount;
-  return { gross, discountP, net, dpP, dpAmount, balance };
+  const originalDpAmount = net * dpP / 100;
+  const isPaidFull = String(o['STATUS PEMBAYARAN'] || '').toLowerCase() === 'paid full'
+    || String(o['TAHAPAN PESANAN'] || '').toLowerCase() === 'selesai';
+  const dpAmount = isPaidFull ? 0 : originalDpAmount;
+  const balance = isPaidFull ? 0 : (net - dpAmount);
+  const pelunasanAmount = isPaidFull ? (net - originalDpAmount) : 0;
+  return { gross, discountP, net, dpP, dpAmount, balance, isPaidFull, originalDpAmount, pelunasanAmount };
 }
 
 function generateInvoicePdf(id) {
@@ -627,7 +631,7 @@ function generateInvoicePdf(id) {
   sheet.getRange('A5').setValue(o['NAMA PELANGGAN']);
   sheet.getRange('A6').setValue('WA: ' + o['NO HANDPHONE']);
   sheet.getRange('G4').setValue('Status Bayar:');
-  sheet.getRange('G5').setValue(o['STATUS PEMBAYARAN']);
+  sheet.getRange('G5').setValue(fin.isPaidFull ? 'Paid Full' : (o['STATUS PEMBAYARAN'] || 'Unpaid'));
   sheet.getRange('G6').setValue(new Date().toLocaleDateString('id-ID', {day:'numeric', month:'long', year:'numeric'}));
   sheet.getRange('A8').setValue('Deskripsi');
   sheet.getRange('F8').setValue('Qty');
@@ -638,6 +642,19 @@ function generateInvoicePdf(id) {
   sheet.getRange('G9').setValue(fin.gross);
   sheet.getRange('G11').setValue('Diskon: -' + fin.gross * fin.discountP / 100);
   sheet.getRange('G12').setValue('Net: ' + fin.net);
+  sheet.getRange('A12').setValue('Riwayat Pembayaran:');
+  let historyRow = 13;
+  if (fin.originalDpAmount > 0) {
+    sheet.getRange('A' + historyRow).setValue('DP (' + fin.dpP + '%)');
+    sheet.getRange('C' + historyRow).setValue(fin.originalDpAmount);
+    historyRow++;
+  }
+  if (fin.isPaidFull) {
+    sheet.getRange('A' + historyRow).setValue('Pelunasan');
+    sheet.getRange('C' + historyRow).setValue(fin.pelunasanAmount > 0 ? fin.pelunasanAmount : fin.net);
+    historyRow++;
+  }
+
   sheet.getRange('G13').setValue('DP Paid: -' + fin.dpAmount);
   sheet.getRange('G14').setValue('SISA TAGIHAN: ' + fin.balance);
   const url = 'https://docs.google.com/spreadsheets/d/' + pdf.getId() + '/export?exportFormat=pdf';
