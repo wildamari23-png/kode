@@ -3159,9 +3159,41 @@ window.handlePublicOrder = async function(e) {
         customAlert('⚠️ Link kosong', `Link review untuk ${fileName} tidak tersedia.`);
         return;
       }
-      window.open(url, '_blank', 'noopener');
+      const w = window.open('', '_blank');
+      if (!w) return;
+
+      const safeName = String(fileName || 'Dokumen')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+
+      const label = isReviewOnly
+        ? 'Preview review-only aktif. Download tetap dikunci sampai status pembayaran lunas.'
+        : 'Preview dokumen aktif. Anda tetap bisa gunakan tombol download/copy link di dashboard.';
+
+      w.document.title = `Preview - ${fileName}`;
+      w.document.body.style.margin = '0';
+      w.document.body.style.background = '#0f172a';
+      w.document.body.style.fontFamily = 'Arial, sans-serif';
+      w.document.body.innerHTML = `
+        <div style="padding:10px 14px;background:#0b1733;color:#fff;font-size:12px;font-weight:700;display:flex;justify-content:space-between;gap:8px;align-items:center;">
+          <span>${label}</span>
+          <a href="${url}" target="_blank" style="color:#93c5fd;text-decoration:underline;font-weight:700;">Buka langsung</a>
+        </div>
+        <div style="position:fixed;inset:42px 0 0 0;">
+          <iframe src="${url}" style="border:0;width:100%;height:100%;background:#fff;"></iframe>
+          <div style="position:absolute;inset:0;pointer-events:none;display:flex;flex-wrap:wrap;align-content:space-around;justify-content:space-around;opacity:.13;color:#ef4444;font-weight:900;font-size:18px;transform:rotate(-20deg);">
+            <span>REVIEW ONLY - ${safeName} - LENTERA CENDEKIA</span>
+            <span>REVIEW ONLY - ${safeName} - LENTERA CENDEKIA</span>
+            <span>REVIEW ONLY - ${safeName} - LENTERA CENDEKIA</span>
+            <span>REVIEW ONLY - ${safeName} - LENTERA CENDEKIA</span>
+          </div>
+        </div>
+      `;
       if (isReviewOnly) {
-        customAlert('Mode Review Aktif', 'Dokumen dibuka langsung dari Google Drive agar tidak blank. Download tetap dikunci sampai status pembayaran lunas.');
+        customAlert('Mode Review Aktif', 'Dokumen dibuka dengan watermark overlay.');
       }
     };
 
