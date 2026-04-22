@@ -886,6 +886,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
                <div class="order-tab shrink-0 rounded-xl bg-slate-50" onclick="filterOrdersByStatus('Antrean')">⏳ Antrean</div>
                <div class="order-tab shrink-0 rounded-xl bg-slate-50" onclick="filterOrdersByStatus('Proses')">⚙️ Proses</div>
                <div class="order-tab shrink-0 rounded-xl bg-slate-50" onclick="filterOrdersByStatus('Revisi')">📝 Revisi</div>
+               <div class="order-tab shrink-0 rounded-xl bg-slate-50" onclick="filterOrdersByStatus('Penagihan Pembayaran Akhir')">💳 Penagihan</div>
                <div class="order-tab shrink-0 rounded-xl bg-slate-50" onclick="filterOrdersByStatus('Selesai')">✅ Selesai</div>
                <div class="order-tab shrink-0 rounded-xl bg-slate-50" onclick="filterOrdersByStatus('Batal')">⛔ Batal</div>
              </div>
@@ -2588,10 +2589,9 @@ window.handlePublicOrder = async function(e) {
     const fin = calculateOrderFinance(o);
     const canEdit = isAdmin || (isWorker && o.WORKER === CURRENT_USER.Username);
     const status = window.safeGet(o, 'TAHAPAN PESANAN');
+    const statusClass = String(status || '').replace(/[^a-zA-Z0-9_-]/g, '-');
     const workerAssigned = window.safeGet(o, 'WORKER');
     const canClaim = isWorker && (!workerAssigned || workerAssigned.trim() === "" || workerAssigned === "0") && status === 'Antrean';
-    const hasFinalFiles = !!String(o['FOLDER DOKUMEN FINAL'] || '').trim();
-    const isPaidFull = String(o['STATUS PEMBAYARAN'] || '').toLowerCase().includes('paid full');
 
     // Format Deadline
     let deadlineText = 'Belum diatur';
@@ -2618,7 +2618,7 @@ window.handlePublicOrder = async function(e) {
         <div class="flex-1">
           <div class="flex items-center gap-3 mb-3">
             <h4 class="font-black">#${id}</h4>
-            <span class="status-pill status-${status}">${status}</span>
+            <span class="status-pill status-${statusClass}">${status}</span>
             ${o.WORKER ? `<span class="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-full">👷 ${o.WORKER}</span>` : ''}
             ${durationBadge}
           </div>
@@ -2647,18 +2647,6 @@ window.handlePublicOrder = async function(e) {
 	                  class="order-action-btn bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors">
 	            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Detail
 	          </button>
-
-            ${hasFinalFiles ? `
-            <button onclick="sendOrderFileLinkWA('${id}', 'review')"
-                    class="order-action-btn bg-violet-50 hover:bg-violet-100 text-violet-700 transition-colors">
-              <i data-lucide="link-2" class="w-3.5 h-3.5"></i> Kirim Link Review
-            </button>` : ''}
-
-            ${(hasFinalFiles && isPaidFull) ? `
-            <button onclick="sendOrderFileLinkWA('${id}', 'download')"
-                    class="order-action-btn bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors">
-              <i data-lucide="download" class="w-3.5 h-3.5"></i> Kirim Link Download
-            </button>` : ''}
 
           ${canClaim ? `
 	            <button onclick="claimOrder('${id}')" 
@@ -2914,6 +2902,9 @@ window.handlePublicOrder = async function(e) {
 
   const fin = calculateOrderFinance(o);
   const isAdmin = String(CURRENT_USER.Role).toLowerCase() === 'admin';
+  const hasFinalFiles = !!String(o['FOLDER DOKUMEN FINAL'] || '').trim();
+  const isPaidFull = String(o['STATUS PEMBAYARAN'] || '').toLowerCase().includes('paid full');
+  const statusClassDetail = String(o['TAHAPAN PESANAN'] || '').replace(/[^a-zA-Z0-9_-]/g, '-');
 
   let deadlineDisplay = 'Belum diatur';
   if (o.DEADLINE) {
@@ -2951,7 +2942,7 @@ window.handlePublicOrder = async function(e) {
           <p class="font-semibold text-xl mt-2">${o['NAMA PELANGGAN']}</p>
           <p class="text-white/80 text-sm">${o['EMAIL'] || '-'}</p>
         </div>
-        <span class="status-pill status-${o['TAHAPAN PESANAN']} text-sm px-5 py-2">${o['TAHAPAN PESANAN']}</span>
+        <span class="status-pill status-${statusClassDetail} text-sm px-5 py-2">${o['TAHAPAN PESANAN']}</span>
       </div>
 
       <!-- NO HP PELANGGAN -->
@@ -2995,6 +2986,10 @@ window.handlePublicOrder = async function(e) {
           <p class="text-xs font-bold text-slate-400">DOKUMEN FINAL (View-only jika belum lunas)</p>
           <input type="file" id="upload-final-${id}" multiple class="w-full text-xs border rounded-xl p-2">
           <button onclick="uploadOrderDocs('${id}', 'final')" class="w-full py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-xl text-xs">Upload Dokumen Final</button>
+          <div class="flex flex-wrap gap-2">
+            ${hasFinalFiles ? `<button onclick="sendOrderFileLinkWA('${id}', 'review')" class="px-3 py-2 bg-violet-50 border border-violet-200 text-violet-700 text-xs font-bold rounded-xl flex items-center gap-1"><i data-lucide="link-2" class="w-3.5 h-3.5"></i> Kirim Link Review</button>` : ''}
+            ${(hasFinalFiles && isPaidFull) ? `<button onclick="sendOrderFileLinkWA('${id}', 'download')" class="px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-1"><i data-lucide="download" class="w-3.5 h-3.5"></i> Kirim Link Download</button>` : ''}
+          </div>
           <div id="order-docs-final-${id}" class="text-xs text-slate-500">Memuat dokumen final...</div>
         </div>
       </div>
@@ -3043,6 +3038,7 @@ window.handlePublicOrder = async function(e) {
               <option value="Antrean" ${o['TAHAPAN PESANAN']==='Antrean'?'selected':''}>Antrean</option>
               <option value="Proses" ${o['TAHAPAN PESANAN']==='Proses'?'selected':''}>Proses</option>
               <option value="Revisi" ${o['TAHAPAN PESANAN']==='Revisi'?'selected':''}>Revisi</option>
+              <option value="Penagihan Pembayaran Akhir" ${o['TAHAPAN PESANAN']==='Penagihan Pembayaran Akhir'?'selected':''}>Penagihan Pembayaran Akhir</option>
               <option value="Selesai" ${o['TAHAPAN PESANAN']==='Selesai'?'selected':''}>Selesai</option>
               <option value="Batal" ${o['TAHAPAN PESANAN']==='Batal'?'selected':''}>Batal</option>
             </select>
@@ -3098,18 +3094,13 @@ window.handlePublicOrder = async function(e) {
         let statusVal = document.getElementById('upd-status').value;
         let payVal = document.getElementById('upd-pay').value;
 
-        // Auto Lunas jika status selesai dan bukan Batal
-        if (statusVal === 'Selesai') {
-           payVal = 'Paid Full';
-        }
-
         const updates = { status: statusVal, payment: payVal, note: document.getElementById('upd-note').value };
         
         if (payVal === 'Down Payment (DP)') {
            updates.dp = Number(document.getElementById('upd-dp-percent').value) || 0;
         }
 
-        if (files.length > 0) { updates.finalFiles = files; updates.status = 'Selesai'; updates.payment = 'Paid Full'; }
+        if (files.length > 0) { updates.finalFiles = files; updates.status = 'Penagihan Pembayaran Akhir'; }
         
         await serverCall('updateOrder', id, updates); 
         closeModal(); refreshData(); customAlert("Berhasil", "Pesanan berhasil diupdate");
@@ -3191,7 +3182,8 @@ window.handlePublicOrder = async function(e) {
         const listHtml = files.map(f => {
           const safeName = String(f.name).replace(/'/g, "\\'");
           const encodedFileName = encodeURIComponent(String(f.name || 'Dokumen'));
-          const safeReview = String(f.reviewUrl || f.url || '').replace(/'/g, "\\'");
+          const reviewViewerUrl = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(f.downloadUrl || f.url || '')}`;
+          const safeReview = String(reviewViewerUrl).replace(/'/g, "\\'");
           const safeDownload = String(f.downloadUrl || '').replace(/'/g, "\\'");
           const reviewOnlyFlag = (docType === 'final' && !canDownload) ? 'true' : 'false';
           const previewBtn = `<button onclick="openOrderDocReview('${safeReview}', decodeURIComponent('${encodedFileName}'), ${reviewOnlyFlag})" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
@@ -3270,6 +3262,8 @@ window.handlePublicOrder = async function(e) {
       const label = isReviewOnly
         ? 'Preview review-only aktif. Download tetap dikunci sampai status pembayaran lunas.'
         : 'Preview dokumen aktif. Anda tetap bisa gunakan tombol download/copy link di dashboard.';
+      const openDirectBtn = isReviewOnly ? '' : `<a href="${url}" target="_blank" style="color:#93c5fd;text-decoration:underline;font-weight:700;">Buka langsung</a>`;
+      const sandboxAttr = isReviewOnly ? 'sandbox="allow-scripts allow-same-origin"' : '';
 
       w.document.title = `Preview - ${fileName}`;
       w.document.body.style.margin = '0';
@@ -3278,10 +3272,10 @@ window.handlePublicOrder = async function(e) {
       w.document.body.innerHTML = `
         <div style="padding:10px 14px;background:#0b1733;color:#fff;font-size:12px;font-weight:700;display:flex;justify-content:space-between;gap:8px;align-items:center;">
           <span>${label}</span>
-          <a href="${url}" target="_blank" style="color:#93c5fd;text-decoration:underline;font-weight:700;">Buka langsung</a>
+          ${openDirectBtn}
         </div>
         <div style="position:fixed;inset:42px 0 0 0;">
-          <iframe src="${url}" style="border:0;width:100%;height:100%;background:#fff;"></iframe>
+          <iframe ${sandboxAttr} src="${url}" style="border:0;width:100%;height:100%;background:#fff;"></iframe>
           <div style="position:absolute;inset:0;pointer-events:none;display:flex;flex-wrap:wrap;align-content:space-around;justify-content:space-around;opacity:.13;color:#ef4444;font-weight:900;font-size:18px;transform:rotate(-20deg);">
             <span>REVIEW ONLY - ${safeName} - LENTERA CENDEKIA</span>
             <span>REVIEW ONLY - ${safeName} - LENTERA CENDEKIA</span>

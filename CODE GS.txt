@@ -382,6 +382,11 @@ function updateOrder(orderId, updates) {
       }
     }
 
+    // Alur baru: kirim template penagihan pelunasan saat status masuk penagihan pembayaran akhir
+    if (updates.status && String(updates.status).trim() === "Penagihan Pembayaran Akhir") {
+      try { sendPaymentTemplateWA(orderId, "LUNAS"); } catch (e) { console.log("Auto WA Penagihan Akhir gagal:", e); }
+    }
+
     return { success: true, message: "Order berhasil diupdate" };
 
   } catch (e) {
