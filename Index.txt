@@ -2605,7 +2605,7 @@ window.handlePublicOrder = async function(e) {
       durationBadge = `
         <span class="inline-flex items-center gap-1.5 px-4 py-1 bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-xs font-semibold rounded-3xl shadow-inner">
           <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-          ${status === 'Selesai' ? `Final • ${duration}` : duration}
+          ${status === 'Selesai' ? ('Final • ' + duration) : duration}
         </span>`;
     }
 
@@ -3686,7 +3686,7 @@ document.addEventListener('click', function(e) {
       try {
         const res = await serverCall('sendPaymentTemplateWA', parsed.order['ID PESANAN'], parsed.mode);
         if (res && res.success) customAlert("✅ Berhasil", `Template WA ${parsed.mode} terkirim ke ${res.phone}`, "success");
-        else customAlert("❌ Gagal", res?.message || "Gagal mengirim template WA", "error");
+        else customAlert("❌ Gagal", (res && res.message) ? res.message : "Gagal mengirim template WA", "error");
       } catch (e) {
         customAlert("❌ Error", "Terjadi error saat kirim template WA", "error");
       } finally {
