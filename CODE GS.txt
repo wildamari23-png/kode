@@ -720,8 +720,8 @@ function sendPaymentTemplateWA(orderId, mode) {
 
   const fin = calculateOrderFinanceServer(order);
   const type = String(mode || '').trim().toUpperCase();
-  const qrisUrl = "https://drive.google.com/uc?export=download&id=1pbJg6OCV510CtXVhaYpAiIjAdRl2LnrP";
-  const qrisViewUrl = "https://drive.google.com/file/d/1pbJg6OCV510CtXVhaYpAiIjAdRl2LnrP/view?usp=sharing";
+  const qrisUrl = "https://ibb.co.com/cSksQpdd";
+  const qrisViewUrl = "https://ibb.co.com/cSksQpdd";
 
   let nominal = 0;
   let label = "";
@@ -757,6 +757,46 @@ function sendPaymentTemplateWA(orderId, mode) {
     nominal: nominal,
     paymentType: label
   };
+}
+
+function sendOrderFileLinkWA(orderId, linkType) {
+  const orders = getSheetData("Order");
+  const order = orders.find(o => String(o['ID PESANAN']).trim() === String(orderId).trim());
+  if (!order || !order['NO HANDPHONE']) return { success: false, message: "Order / nomor HP tidak ditemukan." };
+
+  const docs = getOrderDocumentFiles(orderId, 'final');
+  if (!docs || !docs.success || !docs.files || docs.files.length === 0) {
+    return { success: false, message: "Dokumen final belum tersedia." };
+  }
+
+  const type = String(linkType || 'review').toLowerCase();
+  const isDownload = type === 'download';
+  const isPaidFull = String(order['STATUS PEMBAYARAN'] || '').toLowerCase() === 'paid full';
+  if (isDownload && !isPaidFull) {
+    return { success: false, message: "Link download hanya bisa dikirim jika status pembayaran sudah lunas." };
+  }
+
+  const lines = docs.files.slice(0, 8).map((f, idx) => {
+    const link = isDownload ? (f.downloadUrl || f.url) : (f.reviewUrl || f.url);
+    return `${idx + 1}. ${f.name}\n${link}`;
+  });
+
+  const title = isDownload ? "Link Download Dokumen Final" : "Link Review Dokumen Final";
+  const message = [
+    `Halo ${order['NAMA PELANGGAN'] || 'Kak'},`,
+    ``,
+    `📁 *${title}*`,
+    `Order: ${order['ID PESANAN']}`,
+    `Layanan: ${order['LAYANAN'] || '-'}`,
+    ``,
+    lines.join("\n\n"),
+    ``,
+    isDownload ? "Dokumen sudah bisa diunduh karena pembayaran lunas." : "Silakan review dokumen final terlebih dahulu.",
+    `Lentera Cendekia`
+  ].join("\n");
+
+  const ok = sendWhatsApp(order['NO HANDPHONE'], message, orderId);
+  return { success: ok, message: ok ? `Link ${isDownload ? 'download' : 'review'} berhasil dikirim.` : "Gagal kirim WA.", phone: order['NO HANDPHONE'] };
 }
 
 function getNotifications(username, role) {

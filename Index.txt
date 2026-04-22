@@ -2590,6 +2590,8 @@ window.handlePublicOrder = async function(e) {
     const status = window.safeGet(o, 'TAHAPAN PESANAN');
     const workerAssigned = window.safeGet(o, 'WORKER');
     const canClaim = isWorker && (!workerAssigned || workerAssigned.trim() === "" || workerAssigned === "0") && status === 'Antrean';
+    const hasFinalFiles = !!String(o['FOLDER DOKUMEN FINAL'] || '').trim();
+    const isPaidFull = String(o['STATUS PEMBAYARAN'] || '').toLowerCase().includes('paid full');
 
     // Format Deadline
     let deadlineText = 'Belum diatur';
@@ -2645,6 +2647,18 @@ window.handlePublicOrder = async function(e) {
 	                  class="order-action-btn bg-indigo-50 hover:bg-indigo-100 text-indigo-700 transition-colors">
 	            <i data-lucide="eye" class="w-3.5 h-3.5"></i> Detail
 	          </button>
+
+            ${hasFinalFiles ? `
+            <button onclick="sendOrderFileLinkWA('${id}', 'review')"
+                    class="order-action-btn bg-violet-50 hover:bg-violet-100 text-violet-700 transition-colors">
+              <i data-lucide="link-2" class="w-3.5 h-3.5"></i> Kirim Link Review
+            </button>` : ''}
+
+            ${(hasFinalFiles && isPaidFull) ? `
+            <button onclick="sendOrderFileLinkWA('${id}', 'download')"
+                    class="order-action-btn bg-emerald-50 hover:bg-emerald-100 text-emerald-700 transition-colors">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i> Kirim Link Download
+            </button>` : ''}
 
           ${canClaim ? `
 	            <button onclick="claimOrder('${id}')" 
@@ -3625,6 +3639,21 @@ document.addEventListener('click', function(e) {
       try { const res = await serverCall('sendOrderConfirmation', id); if (res.success) { customAlert("✅ Berhasil", res.message); } else { customAlert("❌ Gagal", res.message || "Terjadi kesalahan"); } } catch (e) { customAlert("Error", "Gagal mengirim pesan WhatsApp"); } finally { showLoading(false); }
     }
 
+    window.sendOrderFileLinkWA = async function(orderId, linkType) {
+      const modeText = linkType === 'download' ? 'Download Final' : 'Review Final';
+      if (!confirm("Kirim link " + modeText + " ke pelanggan via WhatsApp?")) return;
+      showLoading(true, "Mengirim link file ke WhatsApp...");
+      try {
+        const res = await serverCall('sendOrderFileLinkWA', orderId, linkType);
+        if (res && res.success) customAlert("✅ Berhasil", res.message || "Link berhasil dikirim.");
+        else customAlert("❌ Gagal", (res && res.message) ? res.message : "Gagal mengirim link file.");
+      } catch (e) {
+        customAlert("❌ Error", "Terjadi error saat mengirim link file.");
+      } finally {
+        showLoading(false);
+      }
+    };
+
     window.getWAPaymentSelection = function() {
       const orderId = String(document.getElementById('wa-order-select')?.value || '').trim();
       const mode = String(document.getElementById('wa-payment-mode')?.value || '').trim().toUpperCase();
@@ -3678,7 +3707,7 @@ document.addEventListener('click', function(e) {
         box.innerHTML = '<p class="text-red-500 font-semibold">Data pesanan/pembayaran tidak valid.</p>';
         return;
       }
-      const qrisLink = 'https://drive.google.com/file/d/1pbJg6OCV510CtXVhaYpAiIjAdRl2LnrP/view?usp=sharing';
+      const qrisLink = 'https://ibb.co.com/cSksQpdd';
       const paymentLabel = parsed.mode === 'DP' ? 'Down Payment (DP)' : 'Pelunasan';
       box.innerHTML = ''
         + '<div class="space-y-2">'
