@@ -4128,9 +4128,30 @@ window.showFinancialSummary = function() {
     ? totalHak - (DASHBOARD_CACHE.pengeluaran || []).reduce((sum, p) => sum + (Number(p['Jumlah']) || 0), 0) 
     : totalHak - totalGajiDiterima;
 
+  const totalPengeluaran = (DASHBOARD_CACHE.pengeluaran || []).reduce((sum, p) => sum + (Number(p['Jumlah']) || 0), 0);
+  const totalPendapatanLain = (DASHBOARD_CACHE.pendapatan || []).reduce((sum, p) => sum + (Number(p['Jumlah']) || 0), 0);
+  const totalFeePerusahaan = orders.reduce((sum, o) => sum + (Number(calculateOrderFinance(o).feeCompany) || 0), 0);
+  const totalNetOrder = orders.reduce((sum, o) => sum + (Number(calculateOrderFinance(o).net) || 0), 0);
+
+  const roleByUsername = {};
+  (DASHBOARD_CACHE.users || []).forEach(u => {
+    const key = String(u.Username || '').trim().toLowerCase();
+    roleByUsername[key] = String(u.Role || '').trim().toLowerCase();
+  });
+
+  let totalGajiAdmin = 0;
+  let totalGajiWorker = 0;
+  (DASHBOARD_CACHE.gaji || []).forEach(g => {
+    const uname = String(g['Worker Username'] || '').trim().toLowerCase();
+    const nilai = Number(g['Total Terima']) || Number(g['Jumlah']) || 0;
+    const role = roleByUsername[uname] || '';
+    if (role === 'admin') totalGajiAdmin += nilai;
+    else totalGajiWorker += nilai;
+  });
+
   let html = `
     <h3 class="text-2xl font-black mb-6 text-center">${isBendahara ? "Rincian Keuangan Perusahaan" : isAdmin ? "Rincian Keuangan Keseluruhan" : "Rincian Saldo Pribadi Saya"}</h3>
-    <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-8">
+    <div class="bg-slate-50 p-6 rounded-3xl border border-slate-200 mb-8 animate__animated animate__fadeInUp">
       <div class="flex justify-between items-center border-b pb-4 mb-4">
         <span class="font-bold text-slate-500">${isBendahara || isAdmin ? "Total Pendapatan Net" : "Total Hak Saya"}</span>
         <span class="text-xl font-black text-emerald-600">${formatIDR(totalHak)}</span>
@@ -4144,6 +4165,59 @@ window.showFinancialSummary = function() {
         <span class="text-3xl font-black text-indigo-600">${formatIDR(sisaSaldo)}</span>
       </div>
     </div>`;
+
+  if (isBendahara || isAdmin) {
+    const baseKas = totalNetOrder + totalPendapatanLain;
+    const adminShare = baseKas > 0 ? Math.min(100, (totalGajiAdmin / baseKas) * 100) : 0;
+    const workerShare = baseKas > 0 ? Math.min(100, (totalGajiWorker / baseKas) * 100) : 0;
+    const expenseShare = baseKas > 0 ? Math.min(100, (totalPengeluaran / baseKas) * 100) : 0;
+
+    html += `
+      <div class="bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-800 text-white rounded-3xl p-6 md:p-7 mb-8 shadow-2xl animate__animated animate__fadeIn">
+        <div class="flex items-start justify-between gap-3 mb-5">
+          <div>
+            <p class="text-xs uppercase tracking-[0.2em] text-white/70 font-bold">Detail Sisa Kas Bersih</p>
+            <h4 class="text-xl md:text-2xl font-black mt-1">Financial Insight Breakdown</h4>
+            <p class="text-xs text-white/70 mt-2">Pendapatan + fee perusahaan + pendapatan lainnya, dikurangi gaji & pengeluaran.</p>
+          </div>
+          <div class="px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-[11px] font-bold">Realtime Preview</div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+          <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
+            <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Gaji Admin</p>
+            <p class="text-2xl font-black mt-2" data-animate-currency="${totalGajiAdmin}">Rp 0</p>
+          </div>
+          <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
+            <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Gaji Worker</p>
+            <p class="text-2xl font-black mt-2" data-animate-currency="${totalGajiWorker}">Rp 0</p>
+          </div>
+          <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
+            <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Pendapatan Lainnya</p>
+            <p class="text-2xl font-black mt-2 text-emerald-300" data-animate-currency="${totalPendapatanLain}">Rp 0</p>
+          </div>
+          <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
+            <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Fee Perusahaan (Order Selesai)</p>
+            <p class="text-2xl font-black mt-2 text-cyan-300" data-animate-currency="${totalFeePerusahaan}">Rp 0</p>
+          </div>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-white/80">Proporsi Gaji Admin</span><span class="font-black">${adminShare.toFixed(1)}%</span></div>
+            <div class="h-2.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-fuchsia-400 rounded-full transition-all duration-1000" style="width:${adminShare}%;"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-white/80">Proporsi Gaji Worker</span><span class="font-black">${workerShare.toFixed(1)}%</span></div>
+            <div class="h-2.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-amber-300 rounded-full transition-all duration-1000" style="width:${workerShare}%;"></div></div>
+          </div>
+          <div>
+            <div class="flex justify-between text-xs mb-1"><span class="text-white/80">Rasio Total Pengeluaran</span><span class="font-black">${expenseShare.toFixed(1)}%</span></div>
+            <div class="h-2.5 bg-white/10 rounded-full overflow-hidden"><div class="h-full bg-rose-400 rounded-full transition-all duration-1000" style="width:${expenseShare}%;"></div></div>
+          </div>
+        </div>
+      </div>`;
+  }
 
   if (tableRows.length > 0) {
     html += `
@@ -4178,6 +4252,21 @@ window.showFinancialSummary = function() {
 
   document.getElementById('modal-content-body').innerHTML = html;
   document.getElementById('modal-overlay').classList.remove('hidden');
+  document.querySelectorAll('[data-animate-currency]').forEach(el => {
+    const target = Number(el.getAttribute('data-animate-currency')) || 0;
+    const start = 0;
+    const duration = 900;
+    let startTime = null;
+    const step = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const progress = Math.min((timestamp - startTime) / duration, 1);
+      const value = Math.floor(start + (target - start) * progress);
+      el.textContent = formatIDR(value);
+      if (progress < 1) window.requestAnimationFrame(step);
+      else el.textContent = formatIDR(target);
+    };
+    window.requestAnimationFrame(step);
+  });
   if (window.lucide) lucide.createIcons();
 };
     window.changeExpensePage = function(page) { currentExpensePage = page; renderPengeluaranTable(); };
