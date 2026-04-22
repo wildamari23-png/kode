@@ -2855,12 +2855,12 @@ window.handlePublicOrder = async function(e) {
             <div>
               <label class="block text-sm font-bold mb-2">DP (%)</label>
               <input type="number" id="manual-dp-percent" value="50" min="0" max="100" step="0.01"
-                     class="w-full p-5 rounded-3xl border" oninput="syncDPManual()">
+                     class="w-full p-5 rounded-3xl border" oninput="syncDPManual('percent')">
             </div>
             <div>
               <label class="block text-sm font-bold mb-2">Nominal DP (Rp)</label>
               <input type="number" id="manual-dp-nominal" value="0"
-                     class="w-full p-5 rounded-3xl border" oninput="syncDPManual()">
+                     class="w-full p-5 rounded-3xl border" oninput="syncDPManual('nominal')">
             </div>
           </div>
         </div>
@@ -6270,12 +6270,12 @@ window.toggleDPSection = function() {
     if (percentInput && (!percentInput.value || Number(percentInput.value) <= 0)) {
       percentInput.value = 50;
     }
-    syncDPManual();
+    syncDPManual('percent');
   }
 };
 
 // Sync DP % dan Nominal
-window.syncDPManual = function() {
+window.syncDPManual = function(source) {
   const harga = parseFloat(document.getElementById('admin-order-harga').value) || 0;
   const qty = parseFloat(document.getElementById('admin-order-qty').value) || 1;
   const gross = harga * qty;
@@ -6283,14 +6283,30 @@ window.syncDPManual = function() {
 
   const percentInput = document.getElementById('manual-dp-percent');
   const nominalInput = document.getElementById('manual-dp-nominal');
+  if (!percentInput || !nominalInput) return;
 
-  if (percentInput.value) {
-    const percent = parseFloat(percentInput.value);
+  if (source === 'percent') {
+    if (percentInput.value === '') {
+      nominalInput.value = '';
+      return;
+    }
+    const percent = parseFloat(percentInput.value) || 0;
     nominalInput.value = Math.round(net * percent / 100);
-  } else if (nominalInput.value) {
-    const nominal = parseFloat(nominalInput.value);
-    percentInput.value = net > 0 ? Math.round((nominal / net) * 100) : 0;
+    return;
   }
+
+  if (source === 'nominal') {
+    if (nominalInput.value === '') {
+      percentInput.value = '';
+      return;
+    }
+    const nominal = parseFloat(nominalInput.value) || 0;
+    percentInput.value = net > 0 ? ((nominal / net) * 100).toFixed(2) : '0';
+    return;
+  }
+
+  const percent = parseFloat(percentInput.value) || 0;
+  nominalInput.value = Math.round(net * percent / 100);
 };
 
 // Hitung total harga (Qty × Harga)

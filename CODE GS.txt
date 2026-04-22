@@ -261,6 +261,12 @@ function saveOrder(payload) {
 
     sheet.appendRow(row);
 
+    // Otomatis kirim template WA DP jika pesanan baru langsung berstatus DP
+    const statusBayarBaru = String(payload["STATUS PEMBAYARAN"] || '').trim();
+    if (statusBayarBaru === "Down Payment (DP)") {
+      try { sendPaymentTemplateWA(newId, "DP"); } catch (e) { console.log("Auto WA DP gagal:", e); }
+    }
+
     return { success: true, id: newId, message: "Pesanan berhasil disimpan" };
 
   } catch (e) {
@@ -313,6 +319,7 @@ function updateOrder(orderId, updates) {
     if (rowIndex === -1) return { success: false, message: "Order tidak ditemukan" };
 
     // Update Status
+    const previousPayment = paymentCol !== -1 ? String(data[rowIndex - 1][paymentCol] || '').trim() : '';
     if (updates.status && statusCol !== -1) {
       sheet.getRange(rowIndex, statusCol + 1).setValue(updates.status);
     }
@@ -362,6 +369,16 @@ function updateOrder(orderId, updates) {
       });
       if (finalFolderCol !== -1 && !sheet.getRange(rowIndex, finalFolderCol + 1).getValue()) {
         sheet.getRange(rowIndex, finalFolderCol + 1).setValue(folder.getUrl());
+      }
+    }
+
+    // Otomatis kirim WA pembayaran saat transisi status bayar
+    if (updates.payment) {
+      const newPayment = String(updates.payment || '').trim();
+      if (newPayment === "Paid Full" && previousPayment !== "Paid Full") {
+        try { sendPaymentTemplateWA(orderId, "LUNAS"); } catch (e) { console.log("Auto WA Lunas gagal:", e); }
+      } else if (newPayment === "Down Payment (DP)" && previousPayment !== "Down Payment (DP)") {
+        try { sendPaymentTemplateWA(orderId, "DP"); } catch (e) { console.log("Auto WA DP gagal:", e); }
       }
     }
 
