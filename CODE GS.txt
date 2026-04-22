@@ -704,6 +704,7 @@ function sendPaymentTemplateWA(orderId, mode) {
   const fin = calculateOrderFinanceServer(order);
   const type = String(mode || '').trim().toUpperCase();
   const qrisUrl = "https://drive.google.com/uc?export=download&id=1pbJg6OCV510CtXVhaYpAiIjAdRl2LnrP";
+  const qrisViewUrl = "https://drive.google.com/file/d/1pbJg6OCV510CtXVhaYpAiIjAdRl2LnrP/view?usp=sharing";
 
   let nominal = 0;
   let label = "";
@@ -724,6 +725,7 @@ function sendPaymentTemplateWA(orderId, mode) {
     `Nominal Bayar: *${formatIDR(nominal)}*`,
     ``,
     `Silakan scan QR Code pembayaran terlampir.`,
+    `Jika gambar tidak tampil, gunakan link ini: ${qrisViewUrl}`,
     `Konfirmasi setelah transfer ya 🙏`,
     ``,
     `Lentera Cendekia`
