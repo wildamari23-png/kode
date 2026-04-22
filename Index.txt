@@ -2905,12 +2905,6 @@ window.handlePublicOrder = async function(e) {
   const hasFinalFiles = !!String(o['FOLDER DOKUMEN FINAL'] || '').trim();
   const isPaidFull = String(o['STATUS PEMBAYARAN'] || '').toLowerCase().includes('paid full');
   const statusClassDetail = String(o['TAHAPAN PESANAN'] || '').replace(/[^a-zA-Z0-9_-]/g, '-');
-  const reviewWAButton = hasFinalFiles
-    ? '<button onclick="sendOrderFileLinkWA(\'' + id + '\', \'review\')" class="px-3 py-2 bg-violet-50 border border-violet-200 text-violet-700 text-xs font-bold rounded-xl flex items-center gap-1"><i data-lucide="link-2" class="w-3.5 h-3.5"></i> Kirim Link Review</button>'
-    : '';
-  const downloadWAButton = (hasFinalFiles && isPaidFull)
-    ? '<button onclick="sendOrderFileLinkWA(\'' + id + '\', \'download\')" class="px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-1"><i data-lucide="download" class="w-3.5 h-3.5"></i> Kirim Link Download</button>'
-    : '';
 
   let deadlineDisplay = 'Belum diatur';
   if (o.DEADLINE) {
@@ -2992,10 +2986,7 @@ window.handlePublicOrder = async function(e) {
           <p class="text-xs font-bold text-slate-400">DOKUMEN FINAL (View-only jika belum lunas)</p>
           <input type="file" id="upload-final-${id}" multiple class="w-full text-xs border rounded-xl p-2">
           <button onclick="uploadOrderDocs('${id}', 'final')" class="w-full py-2.5 bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold rounded-xl text-xs">Upload Dokumen Final</button>
-          <div class="flex flex-wrap gap-2">
-            ${reviewWAButton}
-            ${downloadWAButton}
-          </div>
+          <div id="detail-wa-actions-${id}" class="flex flex-wrap gap-2"></div>
           <div id="order-docs-final-${id}" class="text-xs text-slate-500">Memuat dokumen final...</div>
         </div>
       </div>
@@ -3026,8 +3017,33 @@ window.handlePublicOrder = async function(e) {
   document.getElementById('modal-content-body').innerHTML = html;
   document.getElementById('modal-overlay').classList.remove('hidden');
   if (window.lucide) lucide.createIcons();
+  renderOrderDetailWAActions(id, hasFinalFiles, isPaidFull);
   refreshOrderDocs(id, 'initial');
   refreshOrderDocs(id, 'final');
+};
+
+window.renderOrderDetailWAActions = function(orderId, hasFinalFiles, isPaidFull) {
+  const box = document.getElementById('detail-wa-actions-' + orderId);
+  if (!box) return;
+  box.innerHTML = '';
+
+  if (!hasFinalFiles) return;
+
+  const reviewBtn = document.createElement('button');
+  reviewBtn.className = 'px-3 py-2 bg-violet-50 border border-violet-200 text-violet-700 text-xs font-bold rounded-xl flex items-center gap-1';
+  reviewBtn.innerHTML = '<i data-lucide=\"link-2\" class=\"w-3.5 h-3.5\"></i> Kirim Link Review';
+  reviewBtn.onclick = function() { sendOrderFileLinkWA(orderId, 'review'); };
+  box.appendChild(reviewBtn);
+
+  if (isPaidFull) {
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'px-3 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl flex items-center gap-1';
+    downloadBtn.innerHTML = '<i data-lucide=\"download\" class=\"w-3.5 h-3.5\"></i> Kirim Link Download';
+    downloadBtn.onclick = function() { sendOrderFileLinkWA(orderId, 'download'); };
+    box.appendChild(downloadBtn);
+  }
+
+  if (window.lucide) lucide.createIcons();
 };
 
     window.openOrderUpdate = function(id) {
@@ -3691,11 +3707,15 @@ document.addEventListener('click', function(e) {
         + '    </select>'
         + '  </div>'
         + '  <div class="flex gap-2">'
-        + '    <button onclick="previewWAPaymentTemplateModern()" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Preview</button>'
-        + '    <button onclick="sendWAPaymentTemplateModern()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Kirim WA</button>'
+        + '    <button id="wa-preview-btn" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Preview</button>'
+        + '    <button id="wa-send-btn" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Kirim WA</button>'
         + '  </div>'
         + '  <div id="wa-template-modern-preview" class="rounded-2xl border bg-slate-50 p-4 text-sm text-slate-600">Belum ada preview.</div>'
         + '</div>';
+      const previewBtn = document.getElementById('wa-preview-btn');
+      const sendBtn = document.getElementById('wa-send-btn');
+      if (previewBtn) previewBtn.onclick = function() { previewWAPaymentTemplateModern(); };
+      if (sendBtn) sendBtn.onclick = function() { sendWAPaymentTemplateModern(); };
       document.getElementById('modal-overlay').classList.remove('hidden');
     };
 
