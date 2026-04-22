@@ -815,11 +815,11 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
 	                 <p class="text-[11px] text-slate-400 mt-2">Total pengeluaran untuk kompensasi</p>
 	               </div>
 	               
-	               <div onclick="showFinancialSummary()" class="cursor-pointer gradient-primary p-5 rounded-[1.6rem] text-white shadow-xl hover:scale-[1.02] transition-all relative overflow-hidden">
+	               <div class="gradient-primary p-5 rounded-[1.6rem] text-white shadow-xl relative overflow-hidden">
 	                 <div class="absolute -right-5 -top-5 opacity-20"><i data-lucide="wallet" class="w-24 h-24"></i></div>
 	                 <p id="label-stat-sisa" class="text-white/75 text-[10px] font-black uppercase mb-1 relative z-10">Total Saldo Bersih</p>
 	                 <h3 id="stat-net-balance" class="monitor-value font-black relative z-10 mt-1">Rp 0</h3>
-	                 <p class="text-[11px] mt-2 text-white/90 relative z-10 flex items-center gap-1"><i data-lucide="eye" class="w-3 h-3"></i> Ketuk untuk rincian detail</p>
+	                 <p class="text-[11px] mt-2 text-white/90 relative z-10 flex items-center gap-1"><i data-lucide="info" class="w-3 h-3"></i> Detail tersedia di tab Pengeluaran</p>
 	               </div>
 	               
 	               <div class="bg-white p-5 rounded-[1.6rem] shadow-sm border border-slate-100 relative overflow-hidden">
@@ -930,9 +930,10 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
                 <p class="text-red-400 text-[10px] font-black uppercase mb-1">Total Pengeluaran (Termasuk Gaji)</p>
                 <h3 id="peng-stat-pengeluaran" class="text-2xl font-black text-red-600">Rp 0</h3>
               </div>
-              <div class="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100 shadow-sm flex flex-col justify-center">
+              <div onclick="showFinancialSummary('pengeluaran')" class="bg-indigo-50 p-6 rounded-[2rem] border border-indigo-100 shadow-sm flex flex-col justify-center cursor-pointer hover:scale-[1.01] transition-all">
                 <p class="text-indigo-400 text-[10px] font-black uppercase mb-1">Sisa Kas Bersih Perusahaan</p>
                 <h3 id="peng-stat-net" class="text-2xl font-black text-indigo-600">Rp 0</h3>
+                <p class="text-[11px] text-indigo-500 mt-2 flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3"></i> Ketuk untuk detail fee & sisa gaji</p>
               </div>
             </div>
 
@@ -4076,11 +4077,15 @@ window.clearWALog = async function() {
 let currentSummaryPage = 1;
 const SUMMARY_PER_PAGE = 8;
 
-window.showFinancialSummary = function() {
+window.showFinancialSummary = function(source = 'monitor') {
   const roleStr = String(CURRENT_USER.Role).toLowerCase();
   const isBendahara = roleStr === 'bendahara' || roleStr === 'finance';
   const isAdmin = roleStr === 'admin';
   const isWorker = !isAdmin && !isBendahara;
+
+  if ((isBendahara || isAdmin) && source !== 'pengeluaran') {
+    customAlert("Info", "Buka rincian kas dari kartu di tab Pengeluaran agar detail fee & sisa gaji tampil lengkap.", "info");
+  }
 
   let orders = DASHBOARD_CACHE.orders.filter(o => window.safeGet(o, 'TAHAPAN PESANAN') === 'Selesai');
 
@@ -4132,6 +4137,8 @@ window.showFinancialSummary = function() {
   const totalPendapatanLain = (DASHBOARD_CACHE.pendapatan || []).reduce((sum, p) => sum + (Number(p['Jumlah']) || 0), 0);
   const totalFeePerusahaan = orders.reduce((sum, o) => sum + (Number(calculateOrderFinance(o).feeCompany) || 0), 0);
   const totalNetOrder = orders.reduce((sum, o) => sum + (Number(calculateOrderFinance(o).net) || 0), 0);
+  const totalHakAdmin = orders.reduce((sum, o) => sum + (Number(calculateOrderFinance(o).feeAdmin) || 0), 0);
+  const totalHakWorker = orders.reduce((sum, o) => sum + (Number(calculateOrderFinance(o).workerNet) || 0), 0);
 
   const roleByUsername = {};
   (DASHBOARD_CACHE.users || []).forEach(u => {
@@ -4148,6 +4155,11 @@ window.showFinancialSummary = function() {
     if (role === 'admin') totalGajiAdmin += nilai;
     else totalGajiWorker += nilai;
   });
+
+  const sisaGajiAdmin = Math.max(0, totalHakAdmin - totalGajiAdmin);
+  const sisaGajiWorker = Math.max(0, totalHakWorker - totalGajiWorker);
+  const kasSaatIni = Math.max(0, totalNetOrder + totalPendapatanLain - totalPengeluaran);
+  const sisaFeePerusahaan = Math.max(0, kasSaatIni - sisaGajiAdmin - sisaGajiWorker);
 
   let html = `
     <h3 class="text-2xl font-black mb-6 text-center">${isBendahara ? "Rincian Keuangan Perusahaan" : isAdmin ? "Rincian Keuangan Keseluruhan" : "Rincian Saldo Pribadi Saya"}</h3>
@@ -4178,7 +4190,7 @@ window.showFinancialSummary = function() {
           <div>
             <p class="text-xs uppercase tracking-[0.2em] text-white/70 font-bold">Detail Sisa Kas Bersih</p>
             <h4 class="text-xl md:text-2xl font-black mt-1">Financial Insight Breakdown</h4>
-            <p class="text-xs text-white/70 mt-2">Pendapatan + fee perusahaan + pendapatan lainnya, dikurangi gaji & pengeluaran.</p>
+            <p class="text-xs text-white/70 mt-2">Kas saat ini sudah dikurangi pembayaran gaji. Ditampilkan juga sisa kewajiban gaji yang belum dibayar.</p>
           </div>
           <div class="px-3 py-1.5 rounded-xl bg-white/10 border border-white/20 text-[11px] font-bold">Realtime Preview</div>
         </div>
@@ -4187,14 +4199,31 @@ window.showFinancialSummary = function() {
           <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
             <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Gaji Admin</p>
             <p class="text-2xl font-black mt-2" data-animate-currency="${totalGajiAdmin}">Rp 0</p>
+            <p class="text-[11px] text-white/70 mt-1">Sisa belum dibayar: <span class="font-bold text-amber-200">${formatIDR(sisaGajiAdmin)}</span></p>
           </div>
           <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
             <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Gaji Worker</p>
             <p class="text-2xl font-black mt-2" data-animate-currency="${totalGajiWorker}">Rp 0</p>
+            <p class="text-[11px] text-white/70 mt-1">Sisa belum dibayar: <span class="font-bold text-amber-200">${formatIDR(sisaGajiWorker)}</span></p>
           </div>
           <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
             <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Pendapatan Lainnya</p>
             <p class="text-2xl font-black mt-2 text-emerald-300" data-animate-currency="${totalPendapatanLain}">Rp 0</p>
+          </div>
+          <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
+            <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Sisa Fee Perusahaan (Setelah kewajiban gaji)</p>
+            <p class="text-2xl font-black mt-2 text-cyan-300" data-animate-currency="${sisaFeePerusahaan}">Rp 0</p>
+            <p class="text-[11px] text-white/70 mt-1">Fee terkumpul: <span class="font-bold text-cyan-200">${formatIDR(totalFeePerusahaan)}</span></p>
+          </div>
+          <div class="bg-white/10 border border-white/20 rounded-2xl p-4 md:col-span-2">
+            <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Kas Saat Ini</p>
+            <p class="text-2xl font-black mt-2 text-lime-300" data-animate-currency="${kasSaatIni}">Rp 0</p>
+            <p class="text-[11px] text-white/70 mt-1">Rumus: Net Order + Pendapatan Lain - Pengeluaran Dibayar</p>
+          </div>
+          <div class="bg-white/10 border border-white/20 rounded-2xl p-4 md:col-span-2">
+            <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Total Sisa Kewajiban Gaji</p>
+            <p class="text-2xl font-black mt-2 text-amber-200" data-animate-currency="${sisaGajiAdmin + sisaGajiWorker}">Rp 0</p>
+            <p class="text-[11px] text-white/70 mt-1">Admin: ${formatIDR(sisaGajiAdmin)} • Worker: ${formatIDR(sisaGajiWorker)}</p>
           </div>
           <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
             <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Fee Perusahaan (Order Selesai)</p>
