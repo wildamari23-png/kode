@@ -283,6 +283,7 @@ function updateOrder(orderId, updates) {
     let statusCol = -1;
     let workerCol = -1;
     let waktuTerimaCol = -1;   // Kolom U = WAKTU DITERIMA WORKER
+    let waktuSelesaiCol = -1;  // Kolom baru = WAKTU SELESAI
     let paymentCol = -1;
     let finalFolderCol = -1;
     let initialFolderCol = -1;
@@ -293,6 +294,7 @@ function updateOrder(orderId, updates) {
       else if (h === "TAHAPAN PESANAN") statusCol = i;
       else if (h === "WORKER") workerCol = i;
       else if (h === "WAKTU DITERIMA WORKER" || h.includes("WAKTU DITERIMA")) waktuTerimaCol = i;
+      else if (h === "WAKTU SELESAI" || h.includes("WAKTU SELESAI")) waktuSelesaiCol = i;
       else if (h === "STATUS PEMBAYARAN") paymentCol = i;
       else if (h === "FOLDER DOKUMEN FINAL") finalFolderCol = i;
       else if (h === "FOLDER DOKUMEN AWAL") initialFolderCol = i;
@@ -330,6 +332,16 @@ function updateOrder(orderId, updates) {
       if (!currentValue) {
         sheet.getRange(rowIndex, waktuTerimaCol + 1).setValue(new Date());
       }
+    }
+
+    // Simpan timestamp selesai agar durasi berhenti ketika status Selesai
+    if (updates.status === "Selesai") {
+      if (waktuSelesaiCol === -1) {
+        waktuSelesaiCol = headers.length;
+        sheet.getRange(1, waktuSelesaiCol + 1).setValue("WAKTU SELESAI");
+      }
+      const finishCell = sheet.getRange(rowIndex, waktuSelesaiCol + 1);
+      if (!finishCell.getValue()) finishCell.setValue(new Date());
     }
 
     // Update Catatan Worker (Kolom R)
@@ -664,14 +676,14 @@ function generateInvoicePdf(id) {
   return blob;
 }
 
-function sendWhatsApp(phone, message, orderId = "") {
+function sendWhatsApp(phone, message, orderId = "", mediaUrl = "") {
   const TOKEN = "DKYLem6wuRH9U1xTmQt2";
   let cleanPhone = String(phone).replace(/\D/g, '');
   if (cleanPhone.startsWith('0')) cleanPhone = '62' + cleanPhone.substring(1);
   if (!cleanPhone.startsWith('62')) cleanPhone = '62' + cleanPhone;
 
   const url = "https://api.fonnte.com/send";
-  const payload = { "target": cleanPhone, "message": message, "url": "", "filename": "" };
+  const payload = { "target": cleanPhone, "message": message, "url": mediaUrl || "", "filename": mediaUrl ? "QRCode-Pembayaran.png" : "" };
   const options = { "method": "post", "headers": { "Authorization": TOKEN }, "contentType": "application/json", "payload": JSON.stringify(payload), "muteHttpExceptions": true };
 
   try {
@@ -680,6 +692,52 @@ function sendWhatsApp(phone, message, orderId = "") {
     if (result.status === true) { logWA(orderId, cleanPhone, "Pengiriman WA", message, "Sukses"); return true; } 
     else { logWA(orderId, cleanPhone, "Pengiriman WA", message, "Gagal", result.message); return false; }
   } catch (e) { logWA(orderId, cleanPhone, "Pengiriman WA", message, "Gagal", e.toString()); return false; }
+}
+
+function sendPaymentTemplateWA(orderId, mode) {
+  const orders = getSheetData("Order");
+  const order = orders.find(o => String(o['ID PESANAN']).trim() === String(orderId).trim());
+  if (!order || !order['NO HANDPHONE']) {
+    return { success: false, message: "Order/nomor HP tidak ditemukan." };
+  }
+
+  const fin = calculateOrderFinanceServer(order);
+  const type = String(mode || '').trim().toUpperCase();
+  const qrisUrl = "https://drive.google.com/uc?export=download&id=1pbJg6OCV510CtXVhaYpAiIjAdRl2LnrP";
+
+  let nominal = 0;
+  let label = "";
+  if (type === "DP") {
+    nominal = fin.originalDpAmount > 0 ? fin.originalDpAmount : (fin.net * 0.5);
+    label = "Down Payment (DP)";
+  } else {
+    nominal = fin.balance > 0 ? fin.balance : Math.max(0, fin.net - fin.originalDpAmount);
+    label = "Pelunasan";
+  }
+
+  const message = [
+    `Halo ${order['NAMA PELANGGAN'] || 'Kak'},`,
+    ``,
+    `💼 *Invoice ${order['ID PESANAN']}*`,
+    `Layanan: ${order['LAYANAN'] || '-'}`,
+    `Jenis Pembayaran: *${label}*`,
+    `Nominal Bayar: *${formatIDR(nominal)}*`,
+    ``,
+    `Silakan scan QR Code pembayaran terlampir.`,
+    `Konfirmasi setelah transfer ya 🙏`,
+    ``,
+    `Lentera Cendekia`
+  ].join("\n");
+
+  const ok = sendWhatsApp(order['NO HANDPHONE'], message, orderId, qrisUrl);
+  return {
+    success: ok,
+    phone: order['NO HANDPHONE'],
+    message,
+    qrisUrl,
+    nominal: nominal,
+    paymentType: label
+  };
 }
 
 function getNotifications(username, role) {

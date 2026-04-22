@@ -867,6 +867,9 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
                   <button onclick="refreshData()" class="group flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-[#7c3aed] to-[#c026d3] hover:from-[#6d28d9] hover:to-[#b91c7d] text-white font-semibold text-xs md:text-sm rounded-2xl shadow-lg transition-all active:scale-95">
                     <i data-lucide="refresh-cw" class="w-4 h-4 group-active:animate-spin"></i> Refresh Data
                   </button>
+                  <button onclick="openWAPaymentTemplateModal()" class="group flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs md:text-sm rounded-2xl shadow-lg transition-all active:scale-95">
+                    <i data-lucide="message-circle" class="w-4 h-4"></i> WA DP/Lunas
+                  </button>
                   <div id="admin-add-order-btn" class="hidden">
                     <button onclick="openOrderModal()" class="px-5 py-3 gradient-primary text-white rounded-2xl font-bold text-xs md:text-sm shadow-lg flex items-center gap-2">
                       <i data-lucide="plus" class="w-4 h-4"></i> Pesanan Manual
@@ -2598,11 +2601,11 @@ window.handlePublicOrder = async function(e) {
     // ==================== BADGE LAMA WAKTU PENGERJAAN (LIVE & MODERN) ====================
     let durationBadge = '';
     if ((status === 'Proses' || status === 'Selesai') && o['WAKTU DITERIMA WORKER']) {
-      const duration = calculateWorkingDuration(o['WAKTU DITERIMA WORKER']);
+      const duration = calculateWorkingDuration(o['WAKTU DITERIMA WORKER'], status === 'Selesai' ? o['WAKTU SELESAI'] : null);
       durationBadge = `
         <span class="inline-flex items-center gap-1.5 px-4 py-1 bg-gradient-to-r from-violet-500 to-indigo-600 text-white text-xs font-semibold rounded-3xl shadow-inner">
           <i data-lucide="clock" class="w-3.5 h-3.5"></i>
-          ${duration}
+          ${status === 'Selesai' ? `Final • ${duration}` : duration}
         </span>`;
     }
 
@@ -3621,6 +3624,75 @@ document.addEventListener('click', function(e) {
       showLoading(true);
       try { const res = await serverCall('sendOrderConfirmation', id); if (res.success) { customAlert("✅ Berhasil", res.message); } else { customAlert("❌ Gagal", res.message || "Terjadi kesalahan"); } } catch (e) { customAlert("Error", "Gagal mengirim pesan WhatsApp"); } finally { showLoading(false); }
     }
+
+    window.openWAPaymentTemplateModal = function() {
+      const body = document.getElementById('modal-content-body');
+      body.innerHTML = `
+        <h3 class="text-2xl font-black mb-4">WA Template Otomatis DP / Lunas</h3>
+        <p class="text-sm text-slate-500 mb-4">Ketik format: <strong>IDPESANAN DP</strong> atau <strong>IDPESANAN LUNAS</strong>. Contoh: <code>LC-AB123 DP</code></p>
+        <div class="space-y-4">
+          <input id="wa-template-command" type="text" placeholder="LC-XXXXX DP" class="w-full p-4 rounded-2xl border bg-slate-50 outline-none text-sm font-semibold uppercase">
+          <div class="flex gap-2">
+            <button onclick="previewWAPaymentTemplate()" class="px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold">Preview Template</button>
+            <button onclick="sendWAPaymentTemplate()" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold">Kirim WA Otomatis</button>
+          </div>
+          <div id="wa-template-preview" class="rounded-2xl border bg-slate-50 p-4 text-sm text-slate-600">Belum ada preview.</div>
+        </div>
+      `;
+      document.getElementById('modal-overlay').classList.remove('hidden');
+    };
+
+    window.parseWAPaymentCommand = function() {
+      const cmd = String(document.getElementById('wa-template-command')?.value || '').trim().toUpperCase();
+      const parts = cmd.split(/\s+/).filter(Boolean);
+      const orderId = parts[0] || '';
+      const mode = (parts[1] || '').replace('.', '');
+      if (!orderId || !['DP', 'LUNAS'].includes(mode)) return null;
+      const order = (DASHBOARD_CACHE.orders || []).find(o => String(o['ID PESANAN'] || '').toUpperCase() === orderId);
+      if (!order) return null;
+      const fin = calculateOrderFinance(order);
+      const nominal = mode === 'DP' ? ((Number(fin.dpAmount) || 0) > 0 ? Number(fin.dpAmount) : Number(fin.net) * 0.5) : Math.max(0, Number(fin.balance) || 0);
+      return { order, mode, nominal };
+    };
+
+    window.previewWAPaymentTemplate = function() {
+      const parsed = parseWAPaymentCommand();
+      const box = document.getElementById('wa-template-preview');
+      if (!box) return;
+      if (!parsed) {
+        box.innerHTML = `<p class="text-red-500 font-semibold">Format tidak valid / order tidak ditemukan.</p>`;
+        return;
+      }
+      const qrisPreview = 'https://drive.google.com/uc?export=view&id=1pbJg6OCV510CtXVhaYpAiIjAdRl2LnrP';
+      box.innerHTML = `
+        <div class="space-y-3">
+          <div class="text-xs uppercase font-black text-slate-500">Preview Pesan WA</div>
+          <div class="rounded-xl bg-white border p-3 text-sm leading-relaxed">
+            Halo ${parsed.order['NAMA PELANGGAN'] || 'Kak'},<br>
+            Invoice <strong>${parsed.order['ID PESANAN']}</strong><br>
+            Layanan: <strong>${parsed.order['LAYANAN'] || '-'}</strong><br>
+            Jenis Bayar: <strong>${parsed.mode === 'DP' ? 'Down Payment (DP)' : 'Pelunasan'}</strong><br>
+            Nominal: <strong>${formatIDR(parsed.nominal)}</strong><br>
+            Silakan scan QR Code pembayaran yang dilampirkan.
+          </div>
+          <img src="${qrisPreview}" alt="QR Pembayaran" class="w-48 rounded-xl border shadow-sm">
+        </div>`;
+    };
+
+    window.sendWAPaymentTemplate = async function() {
+      const parsed = parseWAPaymentCommand();
+      if (!parsed) return customAlert("Format Salah", "Gunakan format: IDPESANAN DP atau IDPESANAN LUNAS", "error");
+      showLoading(true, "Mengirim template WA pembayaran...");
+      try {
+        const res = await serverCall('sendPaymentTemplateWA', parsed.order['ID PESANAN'], parsed.mode);
+        if (res && res.success) customAlert("✅ Berhasil", `Template WA ${parsed.mode} terkirim ke ${res.phone}`, "success");
+        else customAlert("❌ Gagal", res?.message || "Gagal mengirim template WA", "error");
+      } catch (e) {
+        customAlert("❌ Error", "Terjadi error saat kirim template WA", "error");
+      } finally {
+        showLoading(false);
+      }
+    };
 
 
     // ==================== DASHBOARD: SERVICES & BULK ====================
@@ -6331,11 +6403,11 @@ window.confirmTransferOrder = async function() {
   }
 };
 
-window.calculateWorkingDuration = function(startTime) {
+window.calculateWorkingDuration = function(startTime, endTime = null) {
   if (!startTime) return '';
   const start = new Date(startTime);
-  const now = new Date();
-  let diffMs = now - start;
+  const stop = endTime ? new Date(endTime) : new Date();
+  let diffMs = stop - start;
   if (diffMs < 0) return '0m';
 
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
