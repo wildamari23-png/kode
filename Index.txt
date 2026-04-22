@@ -1759,6 +1759,32 @@ window.closeModal = function() {
 
     // Emulasi handler inline tanpa atribut `onclick` agar markup tidak rawan error parser saat initial document.write.
     document.addEventListener('click', function(event) {
+      const actionButton = event.target && event.target.closest ? event.target.closest('[data-action]') : null;
+      if (actionButton) {
+        const action = actionButton.getAttribute('data-action');
+        try {
+          if (action === 'copy-text') {
+            return copyText(decodeURIComponent(String(actionButton.getAttribute('data-text') || '')));
+          }
+          if (action === 'open-doc-review') {
+            return openOrderDocReview(
+              decodeURIComponent(String(actionButton.getAttribute('data-url') || '')),
+              decodeURIComponent(String(actionButton.getAttribute('data-name') || 'Dokumen')),
+              String(actionButton.getAttribute('data-review-only') || 'false') === 'true'
+            );
+          }
+          if (action === 'download-zip') {
+            return downloadOrderDocsZip(
+              decodeURIComponent(String(actionButton.getAttribute('data-order-id') || '')),
+              decodeURIComponent(String(actionButton.getAttribute('data-doc-type') || 'initial'))
+            );
+          }
+        } catch (err) {
+          console.error('data-action handler error:', err, action);
+          return;
+        }
+      }
+
       const actionEl = event.target && event.target.closest ? event.target.closest('[data-onclick]') : null;
       if (!actionEl) return;
       if (actionEl.disabled) return;
@@ -3218,34 +3244,34 @@ window.renderOrderDetailWAActions = function(orderId, hasFinalFiles, isPaidFull)
           return;
         }
 
+        const folderUrl = String(res.folderUrl || '');
         const folderActions = `<div class="flex items-center gap-2 mb-2">
-          <a href="${res.folderUrl}" target="_blank" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[10px]">Buka Folder</a>
-          <button data-onclick="copyText('${String(res.folderUrl || '').replace(/'/g, "\\'")}')" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[10px]">Copy Link Folder</button>
+          <a href="${escapeHtml(folderUrl)}" target="_blank" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[10px]">Buka Folder</a>
+          <button data-action="copy-text" data-text="${encodeURIComponent(folderUrl)}" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[10px]">Copy Link Folder</button>
         </div>`;
 
         const listHtml = files.map(f => {
-          const safeName = String(f.name).replace(/'/g, "\\'");
           const encodedFileName = encodeURIComponent(String(f.name || 'Dokumen'));
           const reviewViewerUrl = `https://docs.google.com/gview?embedded=1&url=${encodeURIComponent(f.downloadUrl || f.url || '')}`;
-          const safeReview = String(reviewViewerUrl).replace(/'/g, "\\'");
-          const safeDownload = String(f.downloadUrl || '').replace(/'/g, "\\'");
+          const safeReview = String(reviewViewerUrl);
+          const safeDownload = String(f.downloadUrl || '');
           const reviewOnlyFlag = (docType === 'final' && !canDownload) ? 'true' : 'false';
-          const previewBtn = `<button data-onclick="openOrderDocReview('${safeReview}', decodeURIComponent('${encodedFileName}'), ${reviewOnlyFlag})" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
-          const reviewLinkBtn = `<button data-onclick="copyText('${safeReview}')" class="px-2 py-1 rounded-lg bg-violet-50 text-violet-700 font-bold">Copy Link Review</button>`;
+          const previewBtn = `<button data-action="open-doc-review" data-url="${encodeURIComponent(safeReview)}" data-name="${encodedFileName}" data-review-only="${reviewOnlyFlag}" class="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 font-bold">Lihat</button>`;
+          const reviewLinkBtn = `<button data-action="copy-text" data-text="${encodeURIComponent(safeReview)}" class="px-2 py-1 rounded-lg bg-violet-50 text-violet-700 font-bold">Copy Link Review</button>`;
           const downloadBtn = canDownload
-            ? `<a href="${f.downloadUrl}" target="_blank" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Download</a><button data-onclick="copyText('${safeDownload}')" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Copy Link Download</button>`
+            ? `<a href="${escapeHtml(String(f.downloadUrl || ''))}" target="_blank" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Download</a><button data-action="copy-text" data-text="${encodeURIComponent(safeDownload)}" class="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 font-bold">Copy Link Download</button>`
             : `<span class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 font-bold">Terkunci sampai lunas</span>`;
           return `<div class="flex items-center justify-between gap-2 border rounded-xl p-2">
             <div class="min-w-0">
-              <p class="font-semibold text-slate-700 truncate">${f.name}</p>
-              <p class="text-[10px] text-slate-400">${f.sizeKb || 0} KB • ${f.updatedAt || '-'}</p>
+              <p class="font-semibold text-slate-700 truncate">${escapeHtml(f.name)}</p>
+              <p class="text-[10px] text-slate-400">${escapeHtml(f.sizeKb || 0)} KB • ${escapeHtml(f.updatedAt || '-')}</p>
             </div>
             <div class="flex flex-wrap items-center justify-end gap-1 text-[10px]">${previewBtn}${reviewLinkBtn}${downloadBtn}</div>
           </div>`;
         }).join('');
 
         const zipBtn = (files.length > 1 && canDownload)
-          ? `<button data-onclick="downloadOrderDocsZip('${orderId}', '${docType}')" class="w-full mt-2 py-2 bg-slate-900 text-white rounded-xl text-[11px] font-bold">Download Semua (.ZIP)</button>`
+          ? `<button data-action="download-zip" data-order-id="${encodeURIComponent(orderId)}" data-doc-type="${encodeURIComponent(docType)}" class="w-full mt-2 py-2 bg-slate-900 text-white rounded-xl text-[11px] font-bold">Download Semua (.ZIP)</button>`
           : '';
         const note = (!canDownload && docType === 'final')
           ? `<p class="text-[10px] text-amber-700 mt-2">Mode review aktif: pelanggan hanya bisa lihat dokumen final (watermark), download dikunci sampai status pembayaran Lunas.</p>`
