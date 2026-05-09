@@ -20,7 +20,7 @@ const SHEETS = {
   USERS: SS.getSheetByName("Users"),
   ORDER: SS.getSheetByName("Order"),
   LAYANAN: SS.getSheetByName("Layanan"),
-  PENGELUARAN: SS.getSheetByName("Pengeluaran") || createSheetIfNotExists("Pengeluaran", ["ID Pengeluaran", "Tanggal", "Deskripsi", "Jumlah", "Kategori", "Input By", "Timestamp"]),
+  PENGELUARAN: SS.getSheetByName("Pengeluaran") || createSheetIfNotExists("Pengeluaran", ["ID Pengeluaran", "Tanggal", "Deskripsi", "Jumlah", "Kategori", "Input By", "Timestamp", "Sumber_dana"]),
   GAJI: SS.getSheetByName("Gaji") || createSheetIfNotExists("Gaji", ["ID Gaji", "Worker Username", "Bulan/Tahun", "Gaji Pokok", "Bonus", "Potongan", "Total Terima", "Input By", "Timestamp"])
 };
 
@@ -984,17 +984,116 @@ function clearWALog() {
   return clearWALogData();
 }
 
+function ensurePengeluaranSumberDanaColumn_() {
+  const sheet = SHEETS.PENGELUARAN;
+  const lastCol = Math.max(sheet.getLastColumn(), 1);
+  const headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h || '').trim());
+  if (!headers.includes('Sumber_dana')) {
+    sheet.getRange(1, lastCol + 1).setValue('Sumber_dana').setFontWeight('bold').setHorizontalAlignment('center');
+    return lastCol + 1;
+  }
+  return headers.indexOf('Sumber_dana') + 1;
+}
+
+function normalizeSumberDana_(sources) {
+  const aliases = {
+    'gaji': 'Sumber dana gaji',
+    'sumber dana gaji': 'Sumber dana gaji',
+    'pendapatan lainnya': 'Pendapatan lainnya',
+    'pendapatan lain': 'Pendapatan lainnya',
+    'kas perusahaan': 'Kas perusahaan'
+  };
+  const raw = Array.isArray(sources) ? sources : String(sources || '').split(/[|,;]/);
+  const out = [];
+  raw.forEach(item => {
+    const key = String(item || '').trim().toLowerCase();
+    const normalized = aliases[key];
+    if (normalized && !out.includes(normalized)) out.push(normalized);
+  });
+  return out;
+}
+
+function getSumberDanaAvailability(excludeExpenseId) {
+  const orders = getSheetData('Order').filter(o => String(o['TAHAPAN PESANAN'] || '').trim() === 'Selesai');
+  const services = getSheetData('Layanan');
+  let totalDanaGaji = 0;
+  let totalKasPerusahaan = 0;
+  orders.forEach(o => {
+    const fin = calculateOrderFinanceServer(o);
+    const layanan = String(o['LAYANAN'] || '').trim().toLowerCase();
+    const svc = services.find(s => String(s['Detail Layanan'] || '').trim().toLowerCase() === layanan) || {};
+    const feeCompanyPct = Number(svc['fee perusahaan(%)']) || 0;
+    const feeCompany = (Number(fin.net) || 0) * feeCompanyPct / 100;
+    totalKasPerusahaan += feeCompany;
+    totalDanaGaji += Math.max(0, (Number(fin.net) || 0) - feeCompany);
+  });
+  const totalPendapatanLain = getSheetData('Pendapatan').reduce((sum, p) => sum + (Number(p['Jumlah']) || 0), 0);
+  const expenses = getSheetData('Pengeluaran').filter(p => String(p['ID Pengeluaran'] || '') !== String(excludeExpenseId || ''));
+  const used = { 'Sumber dana gaji': 0, 'Pendapatan lainnya': 0, 'Kas perusahaan': 0 };
+
+  expenses.forEach(p => {
+    const jumlah = Number(p['Jumlah']) || 0;
+    const sources = normalizeSumberDana_(p['Sumber_dana'] || p['Sumber Dana'] || 'Kas perusahaan');
+    const activeSources = sources.length ? sources : ['Kas perusahaan'];
+    const perSource = jumlah / activeSources.length;
+    activeSources.forEach(src => {
+      used[src] = (used[src] || 0) + perSource;
+    });
+  });
+
+  const pools = {
+    'Sumber dana gaji': totalDanaGaji,
+    'Pendapatan lainnya': totalPendapatanLain,
+    'Kas perusahaan': totalKasPerusahaan
+  };
+
+  return Object.keys(pools).map(name => ({
+    name: name,
+    total: pools[name],
+    used: used[name] || 0,
+    available: Math.max(0, pools[name] - (used[name] || 0))
+  }));
+}
+
+function validateSumberDana_(payload) {
+  const jumlah = Number(payload.jumlah) || 0;
+  const sources = normalizeSumberDana_(payload.sumberDana || payload.Sumber_dana || payload['Sumber_dana']);
+  if (jumlah <= 0) return { success: false, message: 'Jumlah pengeluaran harus lebih dari 0.' };
+  if (!sources.length) return { success: false, message: 'Pilih minimal satu sumber dana.' };
+
+  const availability = getSumberDanaAvailability(payload.id);
+  const totalAvailable = availability
+    .filter(item => sources.includes(item.name))
+    .reduce((sum, item) => sum + (Number(item.available) || 0), 0);
+
+  if (jumlah > totalAvailable) {
+    return {
+      success: false,
+      message: 'Dana tidak cukup. Total tersedia dari sumber terpilih: Rp ' + totalAvailable.toLocaleString('id-ID'),
+      availability: availability
+    };
+  }
+  return { success: true, sources: sources, availability: availability };
+}
+
 function savePengeluaran(payload) {
   const sheet = SHEETS.PENGELUARAN;
+  const sumberDanaCol = ensurePengeluaranSumberDanaColumn_();
+  const validation = validateSumberDana_(payload);
+  if (!validation.success) return validation;
   const id = "EXP-" + Utilities.getUuid().substring(0, 5).toUpperCase();
   const timestamp = new Date();
   const row = [ id, new Date(payload.tanggal), payload.deskripsi, Number(payload.jumlah), payload.kategori, payload.inputBy, timestamp ];
   sheet.appendRow(row);
-  return { success: true, id: id };
+  sheet.getRange(sheet.getLastRow(), sumberDanaCol).setValue(validation.sources.join(', '));
+  return { success: true, id: id, sumberDana: validation.sources.join(', ') };
 }
 
 function updatePengeluaran(payload) {
   const sheet = SHEETS.PENGELUARAN;
+  const sumberDanaCol = ensurePengeluaranSumberDanaColumn_();
+  const validation = validateSumberDana_(payload);
+  if (!validation.success) return validation;
   const data = sheet.getDataRange().getValues();
   
   for (let i = 1; i < data.length; i++) {
@@ -1005,13 +1104,14 @@ function updatePengeluaran(payload) {
       sheet.getRange(row, 3).setValue(payload.deskripsi);
       sheet.getRange(row, 4).setValue(Number(payload.jumlah));
       sheet.getRange(row, 5).setValue(payload.kategori);
+      sheet.getRange(row, sumberDanaCol).setValue(validation.sources.join(', '));
 
       // Jika kategori Gaji Pegawai → update juga di Gaji
       if (payload.kategori === "Gaji Pegawai") {
         updateRelatedGaji(payload.deskripsi, Number(payload.jumlah));
       }
 
-      return { success: true };
+      return { success: true, sumberDana: validation.sources.join(', ') };
     }
   }
   return { success: false, message: "ID tidak ditemukan" };

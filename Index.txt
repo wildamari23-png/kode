@@ -999,6 +999,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
                 <p class="text-[11px] text-indigo-500 mt-2 flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3"></i> Ketuk untuk detail fee & sisa gaji</p>
               </div>
             </div>
+            <div id="fund-source-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
 
             <div class="bg-white p-8 rounded-[2.5rem] border shadow-sm">
               <div class="flex flex-col sm:flex-row justify-between gap-4 mb-4">
@@ -1020,6 +1021,7 @@ body { font-family: 'Plus Jakarta Sans', sans-serif; background: #fdfdfd; color:
     <th class="px-6 py-4 text-left font-bold text-slate-500">ID</th>
     <th class="px-6 py-4 text-left font-bold text-slate-500">Kategori & Deskripsi</th>
     <th class="px-6 py-4 text-right font-bold text-slate-500">Jumlah</th>
+    <th class="px-6 py-4 text-left font-bold text-slate-500">Sumber Dana</th>
     <th class="px-6 py-4 text-left font-bold text-slate-500">Input Oleh</th>
     <th class="px-6 py-4 text-center font-bold text-slate-500">Aksi</th>
   </tr>
@@ -2109,11 +2111,157 @@ window.renderDashboardData = function() {
   if (window.lucide) lucide.createIcons();
 };
 
+
+window.FUND_SOURCE_OPTIONS = ['Sumber dana gaji', 'Pendapatan lainnya', 'Kas perusahaan'];
+
+window.getExpenseSumberDana = function(expense) {
+  const raw = String((expense && (expense['Sumber_dana'] || expense['Sumber Dana'])) || '').trim();
+  if (!raw) return ['Kas perusahaan'];
+  return raw.split(/[|,;]/).map(x => x.trim()).filter(Boolean);
+};
+
+window.getFundSourceBreakdown = function(excludeExpenseId = '') {
+  const completedOrders = (DASHBOARD_CACHE?.orders || []).filter(o => window.safeGet(o, 'TAHAPAN PESANAN') === 'Selesai');
+  const sourceTotals = completedOrders.reduce((acc, o) => {
+    const fin = calculateOrderFinance(o);
+    acc.gaji += Math.max(0, (Number(fin.workerNet) || 0) + (Number(fin.feeAdmin) || 0));
+    acc.kas += Number(fin.feeCompany) || 0;
+    return acc;
+  }, { gaji: 0, kas: 0 });
+  const totalPendapatanLain = (DASHBOARD_CACHE?.pendapatan || []).reduce((sum, p) => sum + (Number(p['Jumlah']) || 0), 0);
+  const used = { 'Sumber dana gaji': 0, 'Pendapatan lainnya': 0, 'Kas perusahaan': 0 };
+
+  (DASHBOARD_CACHE?.pengeluaran || []).forEach(p => {
+    if (String(p['ID Pengeluaran'] || '') === String(excludeExpenseId || '')) return;
+    const amount = Number(p['Jumlah']) || 0;
+    const sources = getExpenseSumberDana(p);
+    const activeSources = sources.length ? sources : ['Kas perusahaan'];
+    const perSource = amount / activeSources.length;
+    activeSources.forEach(src => {
+      if (used[src] == null) used[src] = 0;
+      used[src] += perSource;
+    });
+  });
+
+  const pools = [
+    { name: 'Sumber dana gaji', icon: 'wallet', total: sourceTotals.gaji, desc: 'Pool fee admin + worker net dari order selesai' },
+    { name: 'Pendapatan lainnya', icon: 'trending-up', total: totalPendapatanLain, desc: 'Saldo dari tab Pendapatan Lainnya' },
+    { name: 'Kas perusahaan', icon: 'building-2', total: sourceTotals.kas, desc: 'Fee perusahaan dari order selesai' }
+  ];
+
+  return pools.map(item => ({
+    ...item,
+    used: used[item.name] || 0,
+    available: Math.max(0, Number(item.total || 0) - Number(used[item.name] || 0))
+  }));
+};
+
+window.renderFundSourceSummary = function() {
+  const box = document.getElementById('fund-source-summary');
+  if (!box || !DASHBOARD_CACHE) return;
+  const items = getFundSourceBreakdown();
+  box.innerHTML = items.map(item => {
+    const pct = item.total > 0 ? Math.min(100, Math.round((item.used / item.total) * 100)) : 0;
+    return `
+      <div class="bg-white border border-slate-100 rounded-[1.5rem] p-4 shadow-sm">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-[10px] uppercase tracking-widest text-slate-400 font-black">${escapeHtml(item.name)}</p>
+            <h4 class="text-xl font-black text-slate-800 mt-1">${formatIDR(item.available)}</h4>
+            <p class="text-[11px] text-slate-400 mt-1">Terpakai ${formatIDR(item.used)} dari ${formatIDR(item.total)}</p>
+          </div>
+          <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><i data-lucide="${item.icon}" class="w-5 h-5"></i></div>
+        </div>
+        <div class="mt-3 h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full bg-gradient-to-r from-indigo-500 to-fuchsia-500" style="width:${pct}%"></div></div>
+      </div>`;
+  }).join('');
+  if (window.lucide) lucide.createIcons();
+};
+
+window.renderSumberDanaSelector = function(prefix, selected = ['Kas perusahaan'], excludeExpenseId = '') {
+  const funds = getFundSourceBreakdown(excludeExpenseId);
+  return `
+    <div class="space-y-3">
+      <div class="flex items-center justify-between gap-3">
+        <label class="block text-sm font-bold text-slate-700">Sumber Dana <span class="text-red-500">*</span></label>
+        <span class="text-[10px] font-black uppercase tracking-widest text-indigo-500">Multi-pilih aktif</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        ${funds.map(item => {
+          const checked = selected.includes(item.name) ? 'checked' : '';
+          return `
+            <label class="fund-source-card cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 hover:border-indigo-300 hover:bg-indigo-50 transition-all">
+              <div class="flex items-start gap-3">
+                <input type="checkbox" class="${prefix}-sumber-dana mt-1 accent-indigo-600" value="${escapeHtml(item.name)}" ${checked} onchange="updateSumberDanaPreview('${prefix}', '${excludeExpenseId}')">
+                <div class="min-w-0">
+                  <p class="font-black text-slate-800 text-sm">${escapeHtml(item.name)}</p>
+                  <p class="text-[11px] text-slate-400 mt-1">Tersedia</p>
+                  <p class="text-base font-black text-emerald-600">${formatIDR(item.available)}</p>
+                  <p class="text-[10px] text-slate-400 mt-1 leading-relaxed">${escapeHtml(item.desc)}</p>
+                </div>
+              </div>
+            </label>`;
+        }).join('')}
+      </div>
+      <div id="${prefix}-sumber-dana-preview" class="rounded-2xl bg-slate-50 border border-slate-200 p-4 text-sm"></div>
+    </div>`;
+};
+
+window.getSelectedSumberDana = function(prefix) {
+  return Array.from(document.querySelectorAll(`.${prefix}-sumber-dana:checked`)).map(el => el.value);
+};
+
+window.updateSumberDanaPreview = function(prefix, excludeExpenseId = '') {
+  const box = document.getElementById(`${prefix}-sumber-dana-preview`);
+  if (!box) return;
+  const selected = getSelectedSumberDana(prefix);
+  const amount = Number(document.getElementById(`${prefix}-jumlah`)?.value || 0);
+  const totalAvailable = getFundSourceBreakdown(excludeExpenseId)
+    .filter(item => selected.includes(item.name))
+    .reduce((sum, item) => sum + item.available, 0);
+  const enough = selected.length > 0 && amount > 0 && amount <= totalAvailable;
+  box.innerHTML = `
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div>
+        <p class="text-[10px] uppercase tracking-widest font-black text-slate-400">Validasi Kecukupan Dana</p>
+        <p class="font-bold text-slate-700">Sumber dipilih: ${selected.length ? selected.map(escapeHtml).join(', ') : '<span class="text-red-500">Belum ada</span>'}</p>
+      </div>
+      <div class="text-right">
+        <p class="text-xs text-slate-400">Total tersedia</p>
+        <p class="text-lg font-black ${amount > totalAvailable ? 'text-red-600' : 'text-emerald-600'}">${formatIDR(totalAvailable)}</p>
+      </div>
+    </div>
+    <div class="mt-3 text-xs font-bold ${enough ? 'text-emerald-600' : 'text-amber-600'}">
+      ${enough ? '✅ Dana cukup untuk transaksi ini.' : '⚠️ Pastikan jumlah tidak melebihi total dana dari sumber yang dipilih.'}
+    </div>`;
+};
+
+window.validateExpenseFundSources = function(prefix, excludeExpenseId = '') {
+  const selected = getSelectedSumberDana(prefix);
+  const amount = Number(document.getElementById(`${prefix}-jumlah`)?.value || 0);
+  const totalAvailable = getFundSourceBreakdown(excludeExpenseId)
+    .filter(item => selected.includes(item.name))
+    .reduce((sum, item) => sum + item.available, 0);
+  if (!selected.length) {
+    customAlert('Sumber Dana Wajib', 'Pilih minimal satu sumber dana untuk pengeluaran ini.', 'error');
+    return false;
+  }
+  if (amount <= 0) {
+    customAlert('Jumlah Tidak Valid', 'Jumlah pengeluaran harus lebih dari 0.', 'error');
+    return false;
+  }
+  if (amount > totalAvailable) {
+    customAlert('Dana Tidak Cukup', `Total dana tersedia dari sumber terpilih hanya <strong>${formatIDR(totalAvailable)}</strong>, sedangkan pengeluaran <strong>${formatIDR(amount)}</strong>.`, 'error');
+    return false;
+  }
+  return true;
+};
+
 window.renderPengeluaranTable = function() {
   const pTable = document.getElementById('pengeluaran-table-body');
   const paginationContainer = document.getElementById('expense-pagination');
   if (!pTable || !DASHBOARD_CACHE || !DASHBOARD_CACHE.pengeluaran) {
-    if (pTable) pTable.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-slate-400">Belum ada data pengeluaran</td></tr>`;
+    if (pTable) pTable.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-slate-400">Belum ada data pengeluaran</td></tr>`;
     return;
   }
 
@@ -2129,7 +2277,7 @@ window.renderPengeluaranTable = function() {
   const paginatedData = data.slice(startIdx, startIdx + EXPENSES_PER_PAGE);
 
   if (paginatedData.length === 0) {
-    pTable.innerHTML = `<tr><td colspan="6" class="text-center py-12 text-slate-400">Belum ada data pengeluaran untuk filter ini</td></tr>`;
+    pTable.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-slate-400">Belum ada data pengeluaran untuk filter ini</td></tr>`;
   } else {
     pTable.innerHTML = paginatedData.map(p => `
       <tr class="hover:bg-slate-50 transition-colors border-b border-slate-100">
@@ -2142,6 +2290,9 @@ window.renderPengeluaranTable = function() {
           </div>
         </td>
         <td class="px-6 py-4 text-right font-bold text-red-600">${formatIDR(p['Jumlah'])}</td>
+        <td class="px-6 py-4 text-xs">
+          <div class="flex flex-wrap gap-1">${getExpenseSumberDana(p).map(src => `<span class="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold">${escapeHtml(src)}</span>`).join('')}</div>
+        </td>
         <td class="px-6 py-4 text-xs">${p['Input By']}</td>
         <td class="px-6 py-4 flex justify-center gap-2">
           <button data-onclick="editPengeluaran('${p['ID Pengeluaran']}')" class="p-3 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-xl transition-all">
@@ -2169,6 +2320,7 @@ window.renderPengeluaranTable = function() {
     <button data-onclick="changeExpensePage(${currentExpensePage + 1})" ${currentExpensePage === totalPages ? 'disabled class="opacity-50"' : ''} class="w-8 h-8 rounded-lg bg-white border flex items-center justify-center text-slate-600"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
   `;
 
+  if (typeof renderFundSourceSummary === 'function') renderFundSourceSummary();
   if (window.lucide) lucide.createIcons();
 };
 
@@ -2225,6 +2377,7 @@ window.renderPengeluaranTable = function() {
           <p><span class="text-slate-500">Tanggal:</span> <strong>${new Date(p['Tanggal'] || p['TANGGAL']).toLocaleDateString('id-ID')}</strong></p>
           <p><span class="text-slate-500">Kategori:</span> <strong>${p['Kategori']}</strong></p>
           <p><span class="text-slate-500">Jumlah:</span> <strong class="text-red-600">${formatIDR(p['Jumlah'])}</strong></p>
+          <div><p class="text-slate-500 mb-1">Sumber Dana:</p><div class="flex flex-wrap gap-1">${getExpenseSumberDana(p).map(src => `<span class="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold">${escapeHtml(src)}</span>`).join('')}</div></div>
           <p><span class="text-slate-500">Input By:</span> <strong>${p['Input By'] || '-'}</strong></p>
           <div class="bg-slate-50 border rounded-xl p-3"><p class="text-slate-500 text-xs mb-1">Deskripsi</p><p class="font-medium">${p['Deskripsi'] || '-'}</p></div>
           ${gajiInfo}
@@ -2260,8 +2413,9 @@ window.renderPengeluaranTable = function() {
         <form onsubmit="handleEditPengeluaran(event, '${id}')" class="space-y-6">
           <div><label class="block text-sm font-bold mb-2 text-slate-700">Tanggal</label><input type="date" id="edit-pengeluaran-tanggal" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
           <div><label class="block text-sm font-bold mb-2 text-slate-700">Kategori</label><select id="edit-pengeluaran-kategori" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"><option value="Operasional">Operasional</option><option value="Marketing">Marketing</option><option value="Aset">Aset</option><option value="Gaji Pegawai">Gaji Pegawai</option><option value="Lainnya">Lainnya</option></select></div>
-          <div><label class="block text-sm font-bold mb-2 text-slate-700">Deskripsi</label><input type="text" id="edit-pengeluaran-deskripsi" value="${p['Deskripsi']}" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
-          <div><label class="block text-sm font-bold mb-2 text-slate-700">Jumlah (Rp)</label><input type="number" id="edit-pengeluaran-jumlah" required min="0" value="${p['Jumlah']}" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
+          <div><label class="block text-sm font-bold mb-2 text-slate-700">Deskripsi</label><input type="text" id="edit-pengeluaran-deskripsi" value="${escapeHtml(p['Deskripsi'])}" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
+          <div><label class="block text-sm font-bold mb-2 text-slate-700">Jumlah (Rp)</label><input type="number" id="edit-pengeluaran-jumlah" required min="0" value="${p['Jumlah']}" oninput="updateSumberDanaPreview('edit-pengeluaran', '${id}')" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
+          ${renderSumberDanaSelector('edit-pengeluaran', getExpenseSumberDana(p), id)}
           <button type="submit" class="w-full py-4 gradient-primary text-white rounded-2xl font-bold shadow-lg">Update Pengeluaran</button>
         </form>
       `;
@@ -2276,6 +2430,7 @@ window.renderPengeluaranTable = function() {
       document.getElementById('edit-pengeluaran-kategori').value = p['Kategori'];
 
       document.getElementById('modal-overlay').classList.remove('hidden');
+      updateSumberDanaPreview('edit-pengeluaran', id);
     };
 
     window.handleEditPengeluaran = async function(e, id) {
@@ -4423,6 +4578,7 @@ window.showFinancialSummary = function(source = 'monitor') {
   const totalNetOrder = orders.reduce((sum, o) => sum + (Number(calculateOrderFinance(o).net) || 0), 0);
   const totalHakAdmin = orders.reduce((sum, o) => sum + (Number(calculateOrderFinance(o).feeAdmin) || 0), 0);
   const totalHakWorker = orders.reduce((sum, o) => sum + (Number(calculateOrderFinance(o).workerNet) || 0), 0);
+  const summaryOutflow = (isBendahara || isAdmin) ? totalPengeluaran : totalGajiDiterima;
 
   const roleByUsername = {};
   (DASHBOARD_CACHE.users || []).forEach(u => {
@@ -4454,7 +4610,7 @@ window.showFinancialSummary = function(source = 'monitor') {
       </div>
       <div class="flex justify-between items-center border-b pb-4 mb-4">
         <span class="font-bold text-slate-500">${isBendahara || isAdmin ? "Total Pengeluaran" : "Total Gaji yang Sudah Diterima"}</span>
-        <span class="text-xl font-black text-red-600">-${formatIDR(totalGajiDiterima)}</span>
+        <span class="text-xl font-black text-red-600">-${formatIDR(summaryOutflow)}</span>
       </div>
       <div class="flex justify-between items-center">
         <span class="font-black text-lg">${isBendahara || isAdmin ? "Sisa Kas Bersih" : "Sisa Saldo Saya"}</span>
@@ -4467,6 +4623,13 @@ window.showFinancialSummary = function(source = 'monitor') {
     const adminShare = baseKas > 0 ? Math.min(100, (totalGajiAdmin / baseKas) * 100) : 0;
     const workerShare = baseKas > 0 ? Math.min(100, (totalGajiWorker / baseKas) * 100) : 0;
     const expenseShare = baseKas > 0 ? Math.min(100, (totalPengeluaran / baseKas) * 100) : 0;
+    const sourceBreakdown = typeof getFundSourceBreakdown === 'function' ? getFundSourceBreakdown() : [];
+    const sourceCards = sourceBreakdown.map(item => `
+      <div class="bg-white/10 border border-white/20 rounded-2xl p-4">
+        <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">${escapeHtml(item.name)}</p>
+        <p class="text-2xl font-black mt-2 text-lime-200">${formatIDR(item.available)}</p>
+        <p class="text-[11px] text-white/70 mt-1">Terpakai ${formatIDR(item.used)} dari ${formatIDR(item.total)}</p>
+      </div>`).join('');
 
     html += `
       <div class="bg-gradient-to-br from-slate-900 via-indigo-900 to-slate-800 text-white rounded-3xl p-6 md:p-7 mb-8 shadow-2xl animate__animated animate__fadeIn">
@@ -4503,6 +4666,9 @@ window.showFinancialSummary = function(source = 'monitor') {
             <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Kas Saat Ini</p>
             <p class="text-2xl font-black mt-2 text-lime-300" data-animate-currency="${kasSaatIni}">Rp 0</p>
             <p class="text-[11px] text-white/70 mt-1">Rumus: Net Order + Pendapatan Lain - Pengeluaran Dibayar</p>
+          </div>
+          <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4">
+            ${sourceCards}
           </div>
           <div class="bg-white/10 border border-white/20 rounded-2xl p-4 md:col-span-2">
             <p class="text-[11px] uppercase tracking-widest text-white/70 font-bold">Total Sisa Kewajiban Gaji</p>
@@ -4605,8 +4771,9 @@ window.showFinancialSummary = function(source = 'monitor') {
         <form onsubmit="handleEditPengeluaran(event, '${id}')" class="space-y-6">
           <div><label class="block text-sm font-bold mb-2 text-slate-700">Tanggal</label><input type="date" id="edit-pengeluaran-tanggal" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
           <div><label class="block text-sm font-bold mb-2 text-slate-700">Kategori</label><select id="edit-pengeluaran-kategori" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"><option value="Operasional">Operasional</option><option value="Marketing">Marketing</option><option value="Aset">Aset</option><option value="Gaji Pegawai">Gaji Pegawai</option><option value="Lainnya">Lainnya</option></select></div>
-          <div><label class="block text-sm font-bold mb-2 text-slate-700">Deskripsi</label><input type="text" id="edit-pengeluaran-deskripsi" value="${p['Deskripsi']}" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
-          <div><label class="block text-sm font-bold mb-2 text-slate-700">Jumlah (Rp)</label><input type="number" id="edit-pengeluaran-jumlah" required min="0" value="${p['Jumlah']}" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
+          <div><label class="block text-sm font-bold mb-2 text-slate-700">Deskripsi</label><input type="text" id="edit-pengeluaran-deskripsi" value="${escapeHtml(p['Deskripsi'])}" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
+          <div><label class="block text-sm font-bold mb-2 text-slate-700">Jumlah (Rp)</label><input type="number" id="edit-pengeluaran-jumlah" required min="0" value="${p['Jumlah']}" oninput="updateSumberDanaPreview('edit-pengeluaran', '${id}')" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
+          ${renderSumberDanaSelector('edit-pengeluaran', getExpenseSumberDana(p), id)}
           <button type="submit" class="w-full py-4 gradient-primary text-white rounded-2xl font-bold shadow-lg">Update Pengeluaran</button>
         </form>
       `;
@@ -4617,25 +4784,29 @@ window.showFinancialSummary = function(source = 'monitor') {
       document.getElementById('edit-pengeluaran-tanggal').value = [year, month, day].join('-');
       document.getElementById('edit-pengeluaran-kategori').value = p['Kategori'];
       document.getElementById('modal-overlay').classList.remove('hidden');
+      updateSumberDanaPreview('edit-pengeluaran', id);
     };
 
     window.handleEditPengeluaran = async function(e, id) {
   e.preventDefault();
+  if (!validateExpenseFundSources('edit-pengeluaran', id)) return;
   showLoading(true);
   const payload = {
     id: id,
     tanggal: document.getElementById('edit-pengeluaran-tanggal').value,
     deskripsi: document.getElementById('edit-pengeluaran-deskripsi').value,
     jumlah: document.getElementById('edit-pengeluaran-jumlah').value,
-    kategori: document.getElementById('edit-pengeluaran-kategori').value
+    kategori: document.getElementById('edit-pengeluaran-kategori').value,
+    sumberDana: getSelectedSumberDana('edit-pengeluaran')
   };
   try {
-    await serverCall('updatePengeluaran', payload);
+    const res = await serverCall('updatePengeluaran', payload);
+    if (!res || !res.success) throw new Error((res && res.message) || 'Gagal validasi sumber dana');
     closeModal();
     customAlert("Berhasil", "Pengeluaran diupdate (Gaji terkait otomatis disesuaikan)");
     refreshData();
   } catch (e) {
-    customAlert("Error", "Gagal mengupdate pengeluaran");
+    customAlert("Error", e.message || "Gagal mengupdate pengeluaran");
   } finally {
     showLoading(false);
   }
@@ -4649,20 +4820,23 @@ window.showFinancialSummary = function(source = 'monitor') {
           <div><label class="block text-sm font-bold mb-2 text-slate-700">Tanggal</label><input type="date" id="pengeluaran-tanggal" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
           <div><label class="block text-sm font-bold mb-2 text-slate-700">Kategori</label><select id="pengeluaran-kategori" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"><option value="">Pilih Kategori...</option><option value="Operasional">Operasional</option><option value="Marketing">Marketing</option><option value="Aset">Aset</option><option value="Lainnya">Lainnya</option></select></div>
           <div><label class="block text-sm font-bold mb-2 text-slate-700">Deskripsi</label><input type="text" id="pengeluaran-deskripsi" placeholder="Contoh: Beli pulsa admin" required class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
-          <div><label class="block text-sm font-bold mb-2 text-slate-700">Jumlah (Rp)</label><input type="number" id="pengeluaran-jumlah" required min="0" placeholder="0" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
+          <div><label class="block text-sm font-bold mb-2 text-slate-700">Jumlah (Rp)</label><input type="number" id="pengeluaran-jumlah" required min="0" placeholder="0" oninput="updateSumberDanaPreview('pengeluaran')" class="w-full p-4 rounded-xl border bg-slate-50 outline-none"></div>
+          ${renderSumberDanaSelector('pengeluaran', ['Kas perusahaan'])}
           <button type="submit" class="w-full py-4 gradient-primary text-white rounded-2xl font-bold shadow-lg">Simpan Pengeluaran</button>
         </form>
       `;
       document.getElementById('pengeluaran-tanggal').valueAsDate = new Date();
       document.getElementById('modal-overlay').classList.remove('hidden');
+      updateSumberDanaPreview('pengeluaran');
       if(window.lucide) lucide.createIcons();
     }
 
     window.handleSavePengeluaran = async function(e) {
       e.preventDefault();
-      const payload = { tanggal: document.getElementById('pengeluaran-tanggal').value, deskripsi: document.getElementById('pengeluaran-deskripsi').value, jumlah: document.getElementById('pengeluaran-jumlah').value, kategori: document.getElementById('pengeluaran-kategori').value, inputBy: CURRENT_USER.Username };
+      if (!validateExpenseFundSources('pengeluaran')) return;
+      const payload = { tanggal: document.getElementById('pengeluaran-tanggal').value, deskripsi: document.getElementById('pengeluaran-deskripsi').value, jumlah: document.getElementById('pengeluaran-jumlah').value, kategori: document.getElementById('pengeluaran-kategori').value, sumberDana: getSelectedSumberDana('pengeluaran'), inputBy: CURRENT_USER.Username };
       showLoading(true);
-      try { const res = await serverCall('savePengeluaran', payload); if (res.success) { closeModal(); customAlert("Berhasil", "Data pengeluaran berhasil disimpan."); refreshData(); } } catch (e) { customAlert("Error", "Gagal menyimpan pengeluaran"); } finally { showLoading(false); }
+      try { const res = await serverCall('savePengeluaran', payload); if (res && res.success) { closeModal(); customAlert("Berhasil", "Data pengeluaran berhasil disimpan."); refreshData(); } else { customAlert("Dana Tidak Cukup", (res && res.message) || "Gagal menyimpan pengeluaran", "error"); } } catch (e) { customAlert("Error", e.message || "Gagal menyimpan pengeluaran"); } finally { showLoading(false); }
     }
 
     window.populateGajiDropdowns = function() {
@@ -4802,9 +4976,11 @@ window.showFinancialSummary = function(source = 'monitor') {
       }
       const bankAdmin = getBankAdminFee(bankName, totalTerima);
       const payloadGaji = { workerUsername: workerSelect.value, bulanTahun: document.getElementById('gaji-bulanTahun').value, jumlahGaji: gajiPokok, bonus: bonus, potongan: potongan, inputBy: CURRENT_USER.Username };
-      const payloadPengeluaran = { tanggal: new Date().toISOString().split('T')[0], deskripsi: `Pembayaran Gaji: ${workerName} - ${payloadGaji.bulanTahun}`, jumlah: totalTerima, kategori: 'Gaji Pegawai', inputBy: CURRENT_USER.Username };
+      const gajiFund = getFundSourceBreakdown().find(item => item.name === 'Sumber dana gaji');
+      if (gajiFund && totalTerima > gajiFund.available) return customAlert('Dana Gaji Tidak Cukup', `Saldo sumber dana gaji tersedia ${formatIDR(gajiFund.available)}, kebutuhan ${formatIDR(totalTerima)}.`, 'error');
+      const payloadPengeluaran = { tanggal: new Date().toISOString().split('T')[0], deskripsi: `Pembayaran Gaji: ${workerName} - ${payloadGaji.bulanTahun}`, jumlah: totalTerima, kategori: 'Gaji Pegawai', sumberDana: ['Sumber dana gaji'], inputBy: CURRENT_USER.Username };
       showLoading(true);
-      try { await serverCall('saveGaji', payloadGaji); await serverCall('savePengeluaran', payloadPengeluaran); closeModal(); customAlert("Berhasil", `Data gaji disimpan. Pengeluaran tercatat ${formatIDR(totalTerima)}; transfer diterima ${formatIDR(Math.max(0,totalTerima-bankAdmin))}.`); refreshData(); } catch (e) { customAlert("Error", "Gagal menyimpan gaji"); } finally { showLoading(false); }
+      try { await serverCall('saveGaji', payloadGaji); const expRes = await serverCall('savePengeluaran', payloadPengeluaran); if (!expRes || !expRes.success) throw new Error((expRes && expRes.message) || 'Gagal mencatat pengeluaran gaji'); closeModal(); customAlert("Berhasil", `Data gaji disimpan. Pengeluaran tercatat ${formatIDR(totalTerima)}; transfer diterima ${formatIDR(Math.max(0,totalTerima-bankAdmin))}.`); refreshData(); } catch (e) { customAlert("Error", e.message || "Gagal menyimpan gaji"); } finally { showLoading(false); }
     }
 
     window.downloadSlipGaji = async function(idGaji) {
@@ -5594,17 +5770,18 @@ window.downloadExpensePDF = function(type) {
     new Date(p['Tanggal'] || p['TANGGAL']).toLocaleDateString('id-ID'),
     p['ID Pengeluaran'],
     p['Kategori'],
+    getExpenseSumberDana(p).join(', '),
     p['Deskripsi'],
     formatIDR(p['Jumlah'])
   ]);
   doc.autoTable({
     startY: 88,
-    head: [['Tanggal','ID','Kategori','Deskripsi','Jumlah']],
+    head: [['Tanggal','ID','Kategori','Sumber Dana','Deskripsi','Jumlah']],
     body: rows,
-    styles: { fontSize: 8, cellPadding: 2.8, textColor: [30, 41, 59] },
+    styles: { fontSize: 7.5, cellPadding: 2.5, textColor: [30, 41, 59] },
     headStyles: { fillColor: [51, 65, 85], textColor: 255, halign: 'center' },
     alternateRowStyles: { fillColor: [248, 250, 252] },
-    columnStyles: { 4: { halign: 'right' } }
+    columnStyles: { 5: { halign: 'right' } }
   });
 
   const endY = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? doc.lastAutoTable.finalY : 100;
@@ -5887,6 +6064,7 @@ window.updateMonitorStats = function() {
     if (document.getElementById('peng-stat-income')) document.getElementById('peng-stat-income').innerText = formatIDR(totalPendapatanKeseluruhan);
     if (document.getElementById('peng-stat-pengeluaran')) document.getElementById('peng-stat-pengeluaran').innerText = formatIDR(totalPengeluaran);
     if (document.getElementById('peng-stat-net')) document.getElementById('peng-stat-net').innerText = formatIDR(sisaKas);
+    if (typeof renderFundSourceSummary === 'function') renderFundSourceSummary();
   }
 
   const chartCard = document.getElementById('business-chart-card');
