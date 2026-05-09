@@ -2114,10 +2114,44 @@ window.renderDashboardData = function() {
 
 window.FUND_SOURCE_OPTIONS = ['Sumber dana gaji', 'Pendapatan lainnya', 'Kas perusahaan'];
 
+window.normalizeFundSourceName = function(value) {
+  const key = String(value || '').trim().toLowerCase();
+  const aliases = {
+    'gaji': 'Sumber dana gaji',
+    'sumber dana gaji': 'Sumber dana gaji',
+    'pendapatan lainnya': 'Pendapatan lainnya',
+    'pendapatan lain': 'Pendapatan lainnya',
+    'kas perusahaan': 'Kas perusahaan'
+  };
+  return aliases[key] || '';
+};
+
+window.parseSumberDanaAllocations = function(rawValue) {
+  const raw = String(rawValue || '').trim();
+  if (!raw) return [];
+  return raw.split(/[|,;]/).map(part => {
+    const pieces = String(part || '').split(':');
+    const name = normalizeFundSourceName(pieces[0]);
+    if (!name) return null;
+    const amountRaw = pieces.length > 1 ? pieces.slice(1).join(':').replace(/[^0-9.-]/g, '') : '';
+    return { name, amount: amountRaw === '' ? null : (Number(amountRaw) || 0) };
+  }).filter(Boolean);
+};
+
 window.getExpenseSumberDana = function(expense) {
   const raw = String((expense && (expense['Sumber_dana'] || expense['Sumber Dana'])) || '').trim();
   if (!raw) return ['Kas perusahaan'];
-  return raw.split(/[|,;]/).map(x => x.trim()).filter(Boolean);
+  const parsed = parseSumberDanaAllocations(raw).map(item => item.name);
+  return parsed.length ? [...new Set(parsed)] : ['Kas perusahaan'];
+};
+
+window.getExpenseSumberDanaAllocation = function(expense) {
+  const amount = Number(expense?.['Jumlah']) || 0;
+  const parsed = parseSumberDanaAllocations(expense?.['Sumber_dana'] || expense?.['Sumber Dana']);
+  if (parsed.length && parsed.some(item => item.amount != null)) return parsed.map(item => ({ name: item.name, amount: Number(item.amount) || 0 }));
+  const sources = parsed.length ? parsed.map(item => item.name) : getExpenseSumberDana(expense);
+  const perSource = sources.length ? amount / sources.length : amount;
+  return sources.map(name => ({ name, amount: perSource }));
 };
 
 window.getFundSourceBreakdown = function(excludeExpenseId = '') {
@@ -2133,13 +2167,9 @@ window.getFundSourceBreakdown = function(excludeExpenseId = '') {
 
   (DASHBOARD_CACHE?.pengeluaran || []).forEach(p => {
     if (String(p['ID Pengeluaran'] || '') === String(excludeExpenseId || '')) return;
-    const amount = Number(p['Jumlah']) || 0;
-    const sources = getExpenseSumberDana(p);
-    const activeSources = sources.length ? sources : ['Kas perusahaan'];
-    const perSource = amount / activeSources.length;
-    activeSources.forEach(src => {
-      if (used[src] == null) used[src] = 0;
-      used[src] += perSource;
+    getExpenseSumberDanaAllocation(p).forEach(item => {
+      if (used[item.name] == null) used[item.name] = 0;
+      used[item.name] += Number(item.amount) || 0;
     });
   });
 
@@ -2211,37 +2241,58 @@ window.getSelectedSumberDana = function(prefix) {
   return Array.from(document.querySelectorAll(`.${prefix}-sumber-dana:checked`)).map(el => el.value);
 };
 
+
+window.calculateSumberDanaAllocation = function(amount, selected, excludeExpenseId = '') {
+  const priority = ['Kas perusahaan', 'Pendapatan lainnya', 'Sumber dana gaji'];
+  const funds = getFundSourceBreakdown(excludeExpenseId);
+  let remaining = Number(amount) || 0;
+  const allocations = [];
+  priority.filter(name => selected.includes(name)).forEach(name => {
+    if (remaining <= 0) return;
+    const fund = funds.find(item => item.name === name) || { available: 0 };
+    const used = Math.min(remaining, Math.max(0, Number(fund.available) || 0));
+    if (used > 0) {
+      allocations.push({ name, amount: used, available: Number(fund.available) || 0 });
+      remaining -= used;
+    }
+  });
+  return { allocations, remaining: Math.max(0, remaining) };
+};
+
 window.updateSumberDanaPreview = function(prefix, excludeExpenseId = '') {
   const box = document.getElementById(`${prefix}-sumber-dana-preview`);
   if (!box) return;
   const selected = getSelectedSumberDana(prefix);
   const amount = Number(document.getElementById(`${prefix}-jumlah`)?.value || 0);
-  const totalAvailable = getFundSourceBreakdown(excludeExpenseId)
-    .filter(item => selected.includes(item.name))
-    .reduce((sum, item) => sum + item.available, 0);
-  const enough = selected.length > 0 && amount > 0 && amount <= totalAvailable;
+  const allocation = calculateSumberDanaAllocation(amount, selected, excludeExpenseId);
+  const totalAvailable = allocation.allocations.reduce((sum, item) => sum + item.amount, 0);
+  const enough = selected.length > 0 && amount > 0 && allocation.remaining <= 0;
+  const allocationHtml = allocation.allocations.length
+    ? allocation.allocations.map(item => `<div class="flex justify-between gap-3 py-1"><span>${escapeHtml(item.name)}</span><strong>${formatIDR(item.amount)}</strong></div>`).join('')
+    : '<p class="text-slate-400 text-xs">Belum ada alokasi dana.</p>';
   box.innerHTML = `
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
       <div>
-        <p class="text-[10px] uppercase tracking-widest font-black text-slate-400">Validasi Kecukupan Dana</p>
+        <p class="text-[10px] uppercase tracking-widest font-black text-slate-400">Alokasi Otomatis Sesuai Kebutuhan</p>
         <p class="font-bold text-slate-700">Sumber dipilih: ${selected.length ? selected.map(escapeHtml).join(', ') : '<span class="text-red-500">Belum ada</span>'}</p>
+        <p class="text-[11px] text-slate-400 mt-1">Prioritas potong: Kas perusahaan → Pendapatan lainnya → Sumber dana gaji.</p>
       </div>
       <div class="text-right">
-        <p class="text-xs text-slate-400">Total tersedia</p>
-        <p class="text-lg font-black ${amount > totalAvailable ? 'text-red-600' : 'text-emerald-600'}">${formatIDR(totalAvailable)}</p>
+        <p class="text-xs text-slate-400">Teralokasi</p>
+        <p class="text-lg font-black ${allocation.remaining > 0 ? 'text-red-600' : 'text-emerald-600'}">${formatIDR(totalAvailable)}</p>
       </div>
     </div>
+    <div class="mt-3 rounded-xl bg-white border border-slate-200 p-3 text-xs">${allocationHtml}</div>
     <div class="mt-3 text-xs font-bold ${enough ? 'text-emerald-600' : 'text-amber-600'}">
-      ${enough ? '✅ Dana cukup untuk transaksi ini.' : '⚠️ Pastikan jumlah tidak melebihi total dana dari sumber yang dipilih.'}
+      ${enough ? '✅ Dana cukup. Sistem hanya memotong sesuai nilai kebutuhan dari tiap sumber.' : `⚠️ Masih kurang ${formatIDR(allocation.remaining)}. Centang sumber dana lain atau kurangi jumlah.`}
     </div>`;
 };
 
 window.validateExpenseFundSources = function(prefix, excludeExpenseId = '') {
   const selected = getSelectedSumberDana(prefix);
   const amount = Number(document.getElementById(`${prefix}-jumlah`)?.value || 0);
-  const totalAvailable = getFundSourceBreakdown(excludeExpenseId)
-    .filter(item => selected.includes(item.name))
-    .reduce((sum, item) => sum + item.available, 0);
+  const allocation = calculateSumberDanaAllocation(amount, selected, excludeExpenseId);
+  const totalAvailable = allocation.allocations.reduce((sum, item) => sum + item.amount, 0);
   if (!selected.length) {
     customAlert('Sumber Dana Wajib', 'Pilih minimal satu sumber dana untuk pengeluaran ini.', 'error');
     return false;
@@ -2250,8 +2301,8 @@ window.validateExpenseFundSources = function(prefix, excludeExpenseId = '') {
     customAlert('Jumlah Tidak Valid', 'Jumlah pengeluaran harus lebih dari 0.', 'error');
     return false;
   }
-  if (amount > totalAvailable) {
-    customAlert('Dana Tidak Cukup', `Total dana tersedia dari sumber terpilih hanya <strong>${formatIDR(totalAvailable)}</strong>, sedangkan pengeluaran <strong>${formatIDR(amount)}</strong>.`, 'error');
+  if (allocation.remaining > 0) {
+    customAlert('Dana Tidak Cukup', `Total dana tersedia dari sumber terpilih hanya <strong>${formatIDR(totalAvailable)}</strong>, masih kurang <strong>${formatIDR(allocation.remaining)}</strong>.`, 'error');
     return false;
   }
   return true;
@@ -2291,7 +2342,7 @@ window.renderPengeluaranTable = function() {
         </td>
         <td class="px-6 py-4 text-right font-bold text-red-600">${formatIDR(p['Jumlah'])}</td>
         <td class="px-6 py-4 text-xs">
-          <div class="flex flex-wrap gap-1">${getExpenseSumberDana(p).map(src => `<span class="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold">${escapeHtml(src)}</span>`).join('')}</div>
+          <div class="flex flex-wrap gap-1">${getExpenseSumberDanaAllocation(p).map(src => `<span class="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 font-bold">${escapeHtml(src.name)} • ${formatIDR(src.amount)}</span>`).join('')}</div>
         </td>
         <td class="px-6 py-4 text-xs">${p['Input By']}</td>
         <td class="px-6 py-4 flex justify-center gap-2">
@@ -2377,7 +2428,7 @@ window.renderPengeluaranTable = function() {
           <p><span class="text-slate-500">Tanggal:</span> <strong>${new Date(p['Tanggal'] || p['TANGGAL']).toLocaleDateString('id-ID')}</strong></p>
           <p><span class="text-slate-500">Kategori:</span> <strong>${p['Kategori']}</strong></p>
           <p><span class="text-slate-500">Jumlah:</span> <strong class="text-red-600">${formatIDR(p['Jumlah'])}</strong></p>
-          <div><p class="text-slate-500 mb-1">Sumber Dana:</p><div class="flex flex-wrap gap-1">${getExpenseSumberDana(p).map(src => `<span class="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold">${escapeHtml(src)}</span>`).join('')}</div></div>
+          <div><p class="text-slate-500 mb-1">Sumber Dana:</p><div class="flex flex-wrap gap-1">${getExpenseSumberDanaAllocation(p).map(src => `<span class="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-bold">${escapeHtml(src.name)} • ${formatIDR(src.amount)}</span>`).join('')}</div></div>
           <p><span class="text-slate-500">Input By:</span> <strong>${p['Input By'] || '-'}</strong></p>
           <div class="bg-slate-50 border rounded-xl p-3"><p class="text-slate-500 text-xs mb-1">Deskripsi</p><p class="font-medium">${p['Deskripsi'] || '-'}</p></div>
           ${gajiInfo}
@@ -5770,7 +5821,7 @@ window.downloadExpensePDF = function(type) {
     new Date(p['Tanggal'] || p['TANGGAL']).toLocaleDateString('id-ID'),
     p['ID Pengeluaran'],
     p['Kategori'],
-    getExpenseSumberDana(p).join(', '),
+    getExpenseSumberDanaAllocation(p).map(src => `${src.name}: ${formatIDR(src.amount)}`).join(', '),
     p['Deskripsi'],
     formatIDR(p['Jumlah'])
   ]);
